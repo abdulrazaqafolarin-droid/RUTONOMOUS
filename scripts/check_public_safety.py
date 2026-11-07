@@ -16,9 +16,15 @@ IGNORED_DIRS = {".git", "__pycache__", ".venv", "node_modules"}
 FORBIDDEN_SUFFIXES = {
     ".jks", ".keystore", ".apk", ".aab", ".pem", ".p12", ".pfx",
     ".mobileprovision", ".dump", ".p8", ".cer", ".der", ".crt", ".key",
+    ".db", ".sqlite", ".sqlite3", ".zip", ".tar", ".gz", ".tgz", ".7z",
+    ".rar", ".bin", ".exe", ".msi", ".dmg", ".iso", ".jar", ".war", ".class",
 }
-FORBIDDEN_NAMES = {".env"}
-FORBIDDEN_DIR_NAMES = {"secrets", "credentials", "private-keys"}
+FORBIDDEN_NAMES = {
+    ".env", ".npmrc", ".pypirc", ".netrc", ".git-credentials",
+    "id_rsa", "id_ed25519", "credentials.json", "secrets.json",
+    "service-account.json", "google-credentials.json",
+}
+FORBIDDEN_DIR_NAMES = {"secret", "secrets", "credential", "credentials", "private-keys"}
 
 SECRET_PATTERNS = (
     ("private-key-block", re.compile(
@@ -28,6 +34,10 @@ SECRET_PATTERNS = (
     ("aws-access-key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
     ("stripe-secret", re.compile(r"\bsk_(?:live|test|proj)-[A-Za-z0-9_-]{16,}\b")),
     ("supabase-secret", re.compile(r"\bsb_secret_[A-Za-z0-9_-]{16,}\b")),
+    ("openai-api-key", re.compile(r"\bsk-(?:proj-|svcacct-)[A-Za-z0-9_-]{20,}\b")),
+    ("google-api-key", re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b")),
+    ("slack-token", re.compile(r"\bxox[baprs]-[0-9A-Za-z-]{20,}\b")),
+    ("vercel-token", re.compile(r"\bvercel_[A-Za-z0-9]{20,}\b")),
     ("jwt-like-token", re.compile(
         r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"
     )),
@@ -71,11 +81,16 @@ def scan(root: Path = ROOT) -> list[tuple[str, str]]:
         except OSError:
             findings.append((relative.as_posix(), "unreadable-file"))
             continue
-        if len(raw) > MAX_TEXT_BYTES or b"\x00" in raw:
+        if len(raw) > MAX_TEXT_BYTES:
+            findings.append((relative.as_posix(), "oversized-file"))
+            continue
+        if b"\x00" in raw:
+            findings.append((relative.as_posix(), "binary-file"))
             continue
         try:
             content = raw.decode("utf-8")
         except UnicodeDecodeError:
+            findings.append((relative.as_posix(), "non-text-file"))
             continue
         for label in inspect_text(content):
             findings.append((relative.as_posix(), label))
