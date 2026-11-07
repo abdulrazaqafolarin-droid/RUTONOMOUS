@@ -196,8 +196,8 @@ jobs:
 
       - name: Install PostgreSQL client
         run: |
-          sudo apt-get update > "$RUNNER_TEMP/apt-update.log" 2>&1
-          sudo apt-get install -y postgresql-client > "$RUNNER_TEMP/apt-install.log" 2>&1 || {
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client || {
             echo "::error::PostgreSQL client installation failed."
             exit 1
           }
@@ -207,7 +207,7 @@ jobs:
           PGPASSWORD: postgres
         shell: bash
         run: |
-          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 > "$RUNNER_TEMP/pg-fixture.log" 2>&1 <<'SQL'
+          if ! psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 > "$RUNNER_TEMP/pg-fixture.log" 2>&1 <<'SQL'
           create role anon nologin;
           create role authenticated nologin;
           create role service_role nologin;
@@ -333,7 +333,7 @@ jobs:
           revoke all on table public.backroom_android_commands from public,anon,authenticated;
           grant all on table public.backroom_android_commands to service_role;
           SQL
-          if [ "$?" -ne 0 ]; then
+          then
             echo "::error::Isolated PostgreSQL fixture setup failed. Detailed output is withheld."
             exit 1
           fi
@@ -581,8 +581,8 @@ jobs:
       - name: Install PostgreSQL client
         shell: bash
         run: |
-          sudo apt-get update > "$RUNNER_TEMP/local-e2e-apt-update.log" 2>&1
-          sudo apt-get install -y postgresql-client > "$RUNNER_TEMP/local-e2e-apt-install.log" 2>&1 || {
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client || {
             echo "::error::PostgreSQL client installation failed; detailed output is withheld."
             exit 1
           }
@@ -664,7 +664,7 @@ jobs:
           EOF
           supabase functions serve rub-minds-mcp --env-file "$RUNNER_TEMP/local-mcp.env" > "$RUNNER_TEMP/local-mcp-edge.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/local-mcp-edge.pid"
-          for attempt in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             status_code="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:54321/functions/v1/rub-minds-mcp || true)"
             if [ "$status_code" = "405" ]; then
               echo "Local MCP Edge Function readiness: PASS"
@@ -712,7 +712,7 @@ jobs:
           EOF
           supabase functions serve backroom-device --env-file "$RUNNER_TEMP/local-backroom-device.env" > "$RUNNER_TEMP/local-backroom-device-edge.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/local-backroom-device-edge.pid"
-          for attempt in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             status_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --request POST http://127.0.0.1:54321/functions/v1/backroom-device --header "Content-Type: application/json" --data '{}' || true)"
             if [ "$status_code" = "400" ]; then
               echo "Local Backroom device Edge Function readiness: PASS"
