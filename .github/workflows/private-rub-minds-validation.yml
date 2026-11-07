@@ -441,6 +441,16 @@ jobs:
           gradle-version: '8.10.2'
           cache-provider: basic
 
+      - name: Run synthetic provider-conversation probe regression tests
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          python3 -m unittest discover -s android-companion/scripts -p 'test_provider_conversation_probe.py' -v > "$RUNNER_TEMP/provider-probe.log" 2>&1 || {
+            echo "::error::Provider identity probe regressions failed. Detailed output is withheld on this public run."
+            exit 1
+          }
+          echo "Provider identity probe regression tests: PASS (synthetic fixtures only; no handset/provider data)"
+
       - name: Run Android and device protocol Node regression tests
         working-directory: private-rub-minds
         shell: bash
