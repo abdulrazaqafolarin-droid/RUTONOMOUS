@@ -53,15 +53,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - name: Validate selected private source branch
-        env:
-          SOURCE_REF: ${{ inputs.source_ref }}
-        run: |
-          if [ -z "$SOURCE_REF" ] || [ "${#SOURCE_REF}" -gt 120 ] || ! git check-ref-format --branch "$SOURCE_REF" >/dev/null 2>&1; then
-            echo "::error::Invalid private source branch or tag name."
-            exit 2
-          fi
-
       - name: Check out private Rub Minds source (ephemeral runner only)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -187,16 +178,6 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - name: Validate selected private source branch
-        env:
-          SOURCE_REF: ${{ inputs.source_ref }}
-        shell: bash
-        run: |
-          if [ -z "$SOURCE_REF" ] || [ "${#SOURCE_REF}" -gt 120 ] || ! git check-ref-format --branch "$SOURCE_REF" >/dev/null 2>&1; then
-            echo "::error::Invalid private source branch name."
-            exit 2
-          fi
-
       - name: Check out private Rub Minds source (ephemeral runner only)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -428,16 +409,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - name: Validate selected private source branch
-        env:
-          SOURCE_REF: ${{ inputs.source_ref }}
-        shell: bash
-        run: |
-          if [ -z "$SOURCE_REF" ] || [ "${#SOURCE_REF}" -gt 120 ] || ! git check-ref-format --branch "$SOURCE_REF" >/dev/null 2>&1; then
-            echo "::error::Invalid private source branch name."
-            exit 2
-          fi
-
       - name: Check out private Rub Minds source (ephemeral runner only)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -521,20 +492,11 @@ jobs:
 
   local-supabase-e2e:
     name: Full local Supabase invite, MCP, RLS and device E2E
-    if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
+    needs: validate
+    if: needs.validate.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - name: Validate selected private source branch
-        env:
-          SOURCE_REF: ${{ inputs.source_ref }}
-        shell: bash
-        run: |
-          if [ -z "$SOURCE_REF" ] || [ "${#SOURCE_REF}" -gt 120 ] || ! git check-ref-format --branch "$SOURCE_REF" >/dev/null 2>&1; then
-            echo "::error::Invalid private source branch name."
-            exit 2
-          fi
-
       - name: Check out private Rub Minds source (ephemeral runner only)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -754,16 +716,6 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 35
     steps:
-      - name: Validate selected private source branch
-        shell: bash
-        env:
-          SOURCE_REF: ${{ inputs.source_ref }}
-        run: |
-          if [ -z "$SOURCE_REF" ] || [ "${#SOURCE_REF}" -gt 120 ] || ! git check-ref-format --branch "$SOURCE_REF" >/dev/null 2>&1; then
-            echo "::error::Invalid private source branch name."
-            exit 2
-          fi
-
       - name: Check out private Rub Minds source (ephemeral runner only)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
