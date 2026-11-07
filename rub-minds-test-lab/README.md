@@ -27,7 +27,7 @@ No third-party Python packages are required.
 - Do not add .env files, tokens, service-role keys, database dumps, real user data, APKs, signing keys, or private certificates.
 - Use synthetic IDs, digests, events, and evidence only.
 - Do not configure production deployment secrets or production database access.
-- The included GitHub Actions workflow has read-only repository permissions and does not deploy.
+- The included GitHub Actions workflow has read-only repository permissions, runs a lightweight public-material scan, and does not deploy. The scanner is a guardrail, not a guarantee or substitute for a dedicated secret scanner.
 
 ## Evidence boundary
 
