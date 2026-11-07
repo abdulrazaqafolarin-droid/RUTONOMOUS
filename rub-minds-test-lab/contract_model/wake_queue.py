@@ -7,6 +7,7 @@ A passing test validates this model only, not the private SQL implementation.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Optional
 
 
@@ -95,8 +96,13 @@ class WakeQueue:
         return scope.host_active and scope.consent_active and scope.session_active
 
     def enqueue(self, request: Request, *, now: int, ttl_seconds: int = 3600) -> EnqueueResult:
-        if not request.job_key or not request.event_id or not request.prompt_digest:
-            raise QueueContractError("required request identity missing")
+        if (
+            not re.fullmatch(r"[0-9a-f]{64}", request.job_key)
+            or not re.fullmatch(r"[0-9a-f]{64}", request.scope.session_digest)
+            or not re.fullmatch(r"[0-9a-f]{64}", request.prompt_digest)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", request.event_id)
+        ):
+            raise QueueContractError("invalid request identity or digest")
         if not 60 <= ttl_seconds <= 86_400:
             raise QueueContractError("TTL outside allowed range")
         if not self._scope_active(request.scope):
@@ -253,30 +259,36 @@ class WakeQueue:
                 changed += 1
         return changed
 
-    def revoke_binding(self, *, binding_id: str) -> int:
-        changed = 0
-        for job in self.jobs_by_id.values():
+    def revoke_binding(self, *, binding_id: str, owner_id: str) -> bool:
+        matching = [
+            job for job in self.jobs_by_id.values()
+            if job.request.scope.binding_id == binding_id
+        ]
+        if not matching or matching[0].request.scope.owner_id != owner_id:
+            return False
+        for job in matching:
             scope = job.request.scope
-            if scope.binding_id == binding_id:
-                scope.consent_active = False
-                if job.state in {"pending", "leased"}:
-                    job.state = "cancelled"
-                    self._clear_lease(job)
-                    changed += 1
-        return changed
+            scope.consent_active = False
+            if job.state in {"pending", "leased"}:
+                job.state = "cancelled"
+                self._clear_lease(job)
+        return True
 
-    def revoke_host(self, *, host_id: str) -> int:
-        changed = 0
-        for job in self.jobs_by_id.values():
+    def revoke_host(self, *, host_id: str, owner_id: str) -> bool:
+        matching = [
+            job for job in self.jobs_by_id.values()
+            if job.request.scope.host_id == host_id
+        ]
+        if not matching or matching[0].request.scope.owner_id != owner_id:
+            return False
+        for job in matching:
             scope = job.request.scope
-            if scope.host_id == host_id:
-                scope.host_active = False
-                scope.consent_active = False
-                if job.state in {"pending", "leased"}:
-                    job.state = "cancelled"
-                    self._clear_lease(job)
-                    changed += 1
-        return changed
+            scope.host_active = False
+            scope.consent_active = False
+            if job.state in {"pending", "leased"}:
+                job.state = "cancelled"
+                self._clear_lease(job)
+        return True
 
     @staticmethod
     def _clear_lease(job: Job) -> None:
