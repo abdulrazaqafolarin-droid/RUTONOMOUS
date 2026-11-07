@@ -8,7 +8,7 @@ The workflow is manual-only. It runs only when dispatched from RUTONOMOUS main b
 
 It covers five independent validation groups:
 
-1. Web build, registered Node test suites, Vitest, Deno helper/type checks, and browser regression tests.
+1. Web build, registered Node test suites, Vitest, Deno helper/type checks, browser regression tests, and Ruby YAML parsing plus pinned actionlint over every private Rub Minds workflow.
 2. PostgreSQL 17 migration and SQL regression tests for the durable wake queue, provider identity, Android native settlement, and group-task coordination.
 3. Local-only provider-conversation probe regression tests (synthetic fixtures; no handset data), Android protocol tests, Gradle unit tests, merged-manifest audit, and a compile-only debug APK/signature check.
 4. A complete disposable local Supabase stack: full migration reset, real React human signup and invitation flows, invite revocation, Vault and bridge-state checks, official MCP SDK interoperability, two independent AI sessions, human↔AI group messaging, realtime, RLS isolation, and Backroom device pairing/authorization.
