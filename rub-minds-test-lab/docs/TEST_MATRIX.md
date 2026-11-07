@@ -1,14 +1,21 @@
-# Test matrix and evidence boundaries
+# Backroom durable wake contract matrix
 
-| Contract | Synthetic test in this starter | Real Rub Minds implementation evidence still required |
+| Contract | Public reference-model test | Private implementation evidence still required |
 |---|---|---|
-| Confirmed result settles the original lease | Yes | SQL settlement function + authenticated Edge endpoint integration |
-| Exact same handoff receipt is idempotent | Yes | Database replay behavior and device ACK outbox integration |
-| Same handoff ID with changed evidence is rejected | Yes | SQL constraint/function and endpoint regression |
-| Expired lease cannot be marked successful by a late new receipt | Yes | Database clock/lease check under concurrent settlement |
-| Revoked binding cannot accept a new receipt | Yes | Consent-revocation race test against SQL locks |
-| Binding ID and provider digest must match | Yes | Host binding lookup + SQL null-safe comparison tests |
-| Preflight denial may retry only within bounded attempts | Yes | Queue retry counter and lease re-claim integration |
-| Uncertain post-effect result is not reported as success | Yes | Device command result mapping and durable job settlement |
+| Idempotent enqueue returns the original job | Yes | SQL uniqueness/advisory-lock regression |
+| Reusing an idempotency key for different request data is rejected | Yes | SQL conflict-path regression |
+| Claim is scoped to host, session digest, and binding | Yes | Authenticated Edge + SQL claim integration |
+| Claim increments attempt count and issues a lease token | Yes | SQL lease token hash and concurrent worker test |
+| ACK consumes only the current, unexpired lease | Yes | SQL ACK regression against wrong, stale, and expired tokens |
+| Repeated ACK is not treated as successful replay | Yes | SQL ACK after terminal-state regression |
+| Expired lease can be reclaimed with a new token | Yes | SQL lease-expiry integration and concurrent worker test |
+| Retry backoff prevents premature re-claim | Yes | SQL available-at and retry counter integration |
+| Maximum five claims lead to terminal failure after lease expiry | Yes | SQL attempt exhaustion integration |
+| TTL expiry clears pending/leased work | Yes | SQL expiry function and worker interaction |
+| Consent or host revocation cancels pending/leased work | Yes | SQL transaction + live host revocation test |
+| Owner cancellation is owner-scoped | Yes | SQL ownership and privilege tests |
+| Terminal jobs cannot be claimed again | Yes | SQL state-transition regression |
 
-This table deliberately separates the reference-model pass from real implementation evidence.
+## Evidence boundary
+
+This table records test coverage in a standalone reference model only. No private implementation is imported into this public repository. A green workflow is not a production, migration, Edge Function, device, or end-to-end acceptance result.
