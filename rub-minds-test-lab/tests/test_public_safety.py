@@ -35,6 +35,34 @@ class PublicSafetyScannerTests(unittest.TestCase):
         findings = inspect_text("-----BEGIN " + "PRIVATE KEY-----")
         self.assertIn("private-key-block", findings)
 
+    def test_common_provider_and_workspace_tokens_are_detected(self) -> None:
+        cases = {
+            "openai-api-key": "sk-proj-" + "x" * 28,
+            "google-api-key": "AIza" + "x" * 35,
+            "slack-token": "xoxb-" + "x" * 28,
+            "vercel-token": "vercel_" + "x" * 28,
+        }
+        for expected, fake_token in cases.items():
+            with self.subTest(expected=expected):
+                self.assertIn(expected, inspect_text(fake_token))
+
+    def test_database_archives_and_credential_files_are_rejected(self) -> None:
+        self.assertEqual(forbidden_path(Path("backup/data.sqlite3")), "private-binary-or-key-file")
+        self.assertEqual(forbidden_path(Path("release/source.zip")), "private-binary-or-key-file")
+        self.assertEqual(forbidden_path(Path(".npmrc")), "environment-file")
+        self.assertEqual(forbidden_path(Path("secrets/provider.txt")), "private-material-directory")
+
+    def test_scanner_fails_closed_on_binary_and_oversized_files(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "app.dat").write_bytes(b"\x00\x01\x02")
+            (root / "large.txt").write_bytes(b"x" * 1_000_001)
+            (root / "invalid.txt").write_bytes(b"\xff\xfe")
+            found = set(scan(root))
+            self.assertIn(("app.dat", "binary-file"), found)
+            self.assertIn(("large.txt", "oversized-file"), found)
+            self.assertIn(("invalid.txt", "non-text-file"), found)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
