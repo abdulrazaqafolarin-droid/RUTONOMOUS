@@ -9,3 +9,12 @@ __pycache__/
 *.aab
 *.dump
 *.sql.gz
+*.pem
+*.p12
+*.pfx
+*.p8
+*.cer
+*.der
+*.crt
+*.mobileprovision
+*.key
