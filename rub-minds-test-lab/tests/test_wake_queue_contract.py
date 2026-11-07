@@ -86,11 +86,29 @@ class DurableWakeQueueContractTests(unittest.TestCase):
         self.assertFalse(self.ack(job))
         self.assertEqual(job.state, "acknowledged")
 
+    def test_ack_rejects_wrong_host_session_and_binding(self) -> None:
+        job = self.claim()
+        for overrides in (
+            {"host_id": "other-host"},
+            {"session_digest": "c" * 64},
+            {"binding_id": "other-binding"},
+        ):
+            self.assertFalse(self.ack(job, **overrides))
+            self.assertEqual(job.state, "leased")
+        self.assertTrue(self.ack(job))
+
     def test_wrong_or_stale_lease_token_cannot_acknowledge(self) -> None:
         job = self.claim()
         self.assertFalse(self.ack(job, lease_token="wrong-token"))
         self.assertEqual(job.state, "leased")
         self.assertTrue(self.ack(job))
+
+    def test_ignored_ack_is_terminal_and_consumes_the_lease(self) -> None:
+        job = self.claim()
+        self.assertTrue(self.ack(job, outcome="ignored"))
+        self.assertEqual(job.state, "ignored")
+        self.assertIsNone(job.lease_token)
+        self.assertFalse(self.ack(job, outcome="ignored"))
 
     def test_acknowledgement_after_lease_expiry_is_rejected(self) -> None:
         job = self.claim()
@@ -106,6 +124,29 @@ class DurableWakeQueueContractTests(unittest.TestCase):
         self.assertNotEqual(reclaimed.lease_token, old_token)
         self.assertFalse(self.ack(reclaimed, lease_token=old_token, now=133))
         self.assertTrue(self.ack(reclaimed, now=133))
+
+    def test_retry_rejects_wrong_scope_or_token_without_mutating_the_lease(self) -> None:
+        job = self.claim()
+        base = {
+            "job_id": job.job_id,
+            "host_id": self.scope.host_id,
+            "session_digest": self.scope.session_digest,
+            "binding_id": self.scope.binding_id,
+            "lease_token": job.lease_token,
+            "now": 102,
+        }
+        for overrides in (
+            {"host_id": "other-host"},
+            {"session_digest": "c" * 64},
+            {"binding_id": "other-binding"},
+            {"lease_token": "wrong-token"},
+        ):
+            self.assertIsNone(self.queue.retry(**{**base, **overrides}))
+            self.assertEqual(job.state, "leased")
+        self.assertEqual(
+            self.queue.retry(**base, retry_after_seconds=5, error_code="provider_busy"),
+            "pending",
+        )
 
     def test_retry_respects_backoff_before_another_claim(self) -> None:
         job = self.claim()
@@ -154,9 +195,16 @@ class DurableWakeQueueContractTests(unittest.TestCase):
         self.assertIsNone(job.lease_token)
         self.assertFalse(self.ack(job, now=121))
 
-    def test_consent_revocation_cancels_queued_and_leased_jobs(self) -> None:
+    def test_consent_revocation_is_owner_scoped_and_cancels_leased_jobs(self) -> None:
         job = self.claim()
-        self.assertEqual(self.queue.revoke_binding(binding_id=self.scope.binding_id), 1)
+        self.assertFalse(self.queue.revoke_binding(
+            binding_id=self.scope.binding_id, owner_id="other-owner"
+        ))
+        self.assertTrue(self.scope.consent_active)
+        self.assertEqual(job.state, "leased")
+        self.assertTrue(self.queue.revoke_binding(
+            binding_id=self.scope.binding_id, owner_id=self.scope.owner_id
+        ))
         self.assertEqual(job.state, "cancelled")
         self.assertFalse(self.ack(job))
         self.assertEqual(self.queue.claim(
@@ -165,9 +213,20 @@ class DurableWakeQueueContractTests(unittest.TestCase):
             binding_id=self.scope.binding_id,
             now=103,
         ), [])
+        # Repeating a same-owner revoke is safe after a lost response.
+        self.assertTrue(self.queue.revoke_binding(
+            binding_id=self.scope.binding_id, owner_id=self.scope.owner_id
+        ))
 
-    def test_host_revocation_cancels_queued_jobs(self) -> None:
-        self.assertEqual(self.queue.revoke_host(host_id=self.scope.host_id), 1)
+    def test_host_revocation_is_owner_scoped_and_cancels_queued_jobs(self) -> None:
+        self.assertFalse(self.queue.revoke_host(
+            host_id=self.scope.host_id, owner_id="other-owner"
+        ))
+        self.assertTrue(self.scope.host_active)
+        self.assertEqual(self.queue.jobs_by_id[self.job_id].state, "pending")
+        self.assertTrue(self.queue.revoke_host(
+            host_id=self.scope.host_id, owner_id=self.scope.owner_id
+        ))
         self.assertEqual(self.queue.jobs_by_id[self.job_id].state, "cancelled")
 
     def test_owner_can_cancel_only_their_own_pending_job(self) -> None:
@@ -185,6 +244,31 @@ class DurableWakeQueueContractTests(unittest.TestCase):
             binding_id=self.scope.binding_id,
             now=103,
         ), [])
+
+    def test_retry_on_the_fifth_attempt_is_terminal_failure(self) -> None:
+        for attempt in range(1, 6):
+            job = self.claim(now=100 + (attempt - 1) * 31)
+            self.assertEqual(job.attempt_count, attempt)
+        result = self.queue.retry(
+            job_id=job.job_id,
+            host_id=self.scope.host_id,
+            session_digest=self.scope.session_digest,
+            binding_id=self.scope.binding_id,
+            lease_token=job.lease_token,
+            now=225,
+            retry_after_seconds=1,
+            error_code="result_unconfirmed",
+        )
+        self.assertEqual(result, "failed")
+        self.assertEqual(job.last_error_code, "max_attempts")
+        self.assertIsNone(job.lease_token)
+
+    def test_malformed_request_digests_fail_closed(self) -> None:
+        with self.assertRaisesRegex(QueueContractError, "identity or digest"):
+            self.queue.enqueue(
+                Request("not-a-digest", "event-2", "d" * 64, Scope()),
+                now=100,
+            )
 
     def test_ttl_and_claim_bounds_fail_closed(self) -> None:
         with self.assertRaisesRegex(QueueContractError, "TTL"):
