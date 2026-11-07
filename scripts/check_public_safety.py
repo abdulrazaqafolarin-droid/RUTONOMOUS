@@ -53,10 +53,10 @@ def forbidden_path(path: Path) -> str | None:
         return "environment-file"
     if any(part in FORBIDDEN_DIR_NAMES for part in parts):
         return "private-material-directory"
-    if any(name.endswith(suffix) for suffix in FORBIDDEN_SUFFIXES):
-        return "private-binary-or-key-file"
     if name.endswith(".sql.gz"):
         return "database-dump"
+    if any(name.endswith(suffix) for suffix in FORBIDDEN_SUFFIXES):
+        return "private-binary-or-key-file"
     return None
 
 
