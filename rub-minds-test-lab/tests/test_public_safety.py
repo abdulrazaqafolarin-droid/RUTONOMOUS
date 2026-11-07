@@ -53,6 +53,18 @@ class PublicSafetyScannerTests(unittest.TestCase):
         self.assertEqual(forbidden_path(Path(".npmrc")), "environment-file")
         self.assertEqual(forbidden_path(Path("secrets/provider.txt")), "private-material-directory")
 
+    def test_scanner_flags_symbolic_links_instead_of_following_or_ignoring_them(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            target = root / "ordinary.txt"
+            target.write_text("safe text", encoding="utf-8")
+            link = root / "linked-secret"
+            try:
+                link.symlink_to(target)
+            except (OSError, NotImplementedError):
+                self.skipTest("Symbolic links are not available on this runner.")
+            self.assertIn(("linked-secret", "symbolic-link"), scan(root))
+
     def test_scanner_fails_closed_on_binary_and_oversized_files(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
