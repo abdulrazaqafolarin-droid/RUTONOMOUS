@@ -15,7 +15,7 @@ IGNORED_DIRS = {".git", "__pycache__", ".venv", "node_modules"}
 
 FORBIDDEN_SUFFIXES = {
     ".jks", ".keystore", ".apk", ".aab", ".pem", ".p12", ".pfx",
-    ".mobileprovision", ".dump", ".p8", ".cer", ".der", ".crt",
+    ".mobileprovision", ".dump", ".p8", ".cer", ".der", ".crt", ".key",
 }
 FORBIDDEN_NAMES = {".env"}
 FORBIDDEN_DIR_NAMES = {"secrets", "credentials", "private-keys"}
@@ -39,7 +39,7 @@ MAX_TEXT_BYTES = 1_000_000
 def forbidden_path(path: Path) -> str | None:
     parts = {part.lower() for part in path.parts}
     name = path.name.lower()
-    if name in FORBIDDEN_NAMES and name != ".env.example":
+    if name in FORBIDDEN_NAMES or (name.startswith(".env.") and name != ".env.example"):
         return "environment-file"
     if any(part in FORBIDDEN_DIR_NAMES for part in parts):
         return "private-material-directory"
