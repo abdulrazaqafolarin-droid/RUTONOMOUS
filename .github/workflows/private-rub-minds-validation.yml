@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: Private Rub Minds branch or tag to validate
+        description: Existing private Rub Minds branch to validate
         required: true
         type: string
         default: feat/native-provider-digest-queue
@@ -32,7 +32,7 @@ jobs:
             exit 2
           fi
 
-      - name: Validate source ref
+      - name: Validate selected private source branch
         env:
           SOURCE_REF: ${{ inputs.source_ref }}
         run: |
@@ -171,6 +171,16 @@ jobs:
         run: |
           if [ -z "$RUB_MINDS_READ_TOKEN" ]; then
             echo "::error::Add the RUB_MINDS_READ_TOKEN repository secret. See docs/PRIVATE_RUB_MINDS_CI.md."
+            exit 2
+          fi
+
+      - name: Validate selected private source branch
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+        shell: bash
+        run: |
+          if [ -z "$SOURCE_REF" ] || [ "${#SOURCE_REF}" -gt 120 ] || ! git check-ref-format --branch "$SOURCE_REF" >/dev/null 2>&1; then
+            echo "::error::Invalid private source branch name."
             exit 2
           fi
 
@@ -413,6 +423,16 @@ jobs:
             exit 2
           fi
 
+      - name: Validate selected private source branch
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+        shell: bash
+        run: |
+          if [ -z "$SOURCE_REF" ] || [ "${#SOURCE_REF}" -gt 120 ] || ! git check-ref-format --branch "$SOURCE_REF" >/dev/null 2>&1; then
+            echo "::error::Invalid private source branch name."
+            exit 2
+          fi
+
       - name: Check out private Rub Minds source (ephemeral runner only)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -494,6 +514,242 @@ jobs:
           echo "Backend configuration: empty; build/manifest verification only"
           rm -f "$apk" "$verification"
 
+  local-supabase-e2e:
+    name: Full local Supabase invite, MCP, RLS and device E2E
+    if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+              env:
+                RUB_MINDS_READ_TOKEN: ${{ secrets.RUB_MINDS_READ_TOKEN }}
+              run: |
+                if [ -z "$RUB_MINDS_READ_TOKEN" ]; then
+                  echo "::error::Add the RUB_MINDS_READ_TOKEN repository secret. See docs/PRIVATE_RUB_MINDS_CI.md."
+                  exit 2
+                fi
+      
+      - name: Validate selected private source branch
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+        shell: bash
+        run: |
+          if [ -z "$SOURCE_REF" ] || [ "${#SOURCE_REF}" -gt 120 ] || ! git check-ref-format --branch "$SOURCE_REF" >/dev/null 2>&1; then
+            echo "::error::Invalid private source branch name."
+            exit 2
+          fi
+
+      - name: Check out private Rub Minds source (ephemeral runner only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: abdulrazaqafolarin-droid/Rub-minds
+          ref: ${{ inputs.source_ref }}
+          token: ${{ secrets.RUB_MINDS_READ_TOKEN }}
+          path: private-rub-minds
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Node.js and locked dependencies
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - name: Install locked project dependencies
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund > "$RUNNER_TEMP/local-e2e-npm.log" 2>&1 || {
+            echo "::error::Locked dependency installation failed; detailed output is withheld from public logs."
+            exit 1
+          }
+          echo "Locked dependencies: PASS"
+
+      - name: Install Chromium and official MCP SDK client
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          npx playwright install --with-deps chromium > "$RUNNER_TEMP/local-e2e-playwright-install.log" 2>&1 || {
+            echo "::error::Chromium installation failed; detailed output is withheld."
+            exit 1
+          }
+          npm install --no-save --package-lock=false @modelcontextprotocol/client@2.3.1 > "$RUNNER_TEMP/local-e2e-mcp-sdk-install.log" 2>&1 || {
+            echo "::error::Official MCP SDK installation failed; detailed output is withheld."
+            exit 1
+          }
+          echo "Browser and official MCP SDK dependencies: PASS"
+
+      - name: Install PostgreSQL client
+        shell: bash
+        run: |
+          sudo apt-get update > "$RUNNER_TEMP/local-e2e-apt-update.log" 2>&1
+          sudo apt-get install -y postgresql-client > "$RUNNER_TEMP/local-e2e-apt-install.log" 2>&1 || {
+            echo "::error::PostgreSQL client installation failed; detailed output is withheld."
+            exit 1
+          }
+          echo "PostgreSQL client: PASS"
+
+      - name: Install pinned Supabase CLI
+        uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1
+        with:
+          version: 2.119.0
+
+      - name: Start isolated local Supabase stack
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          supabase stop --no-backup > "$RUNNER_TEMP/local-supabase-stop.log" 2>&1 || true
+          supabase start -x studio,imgproxy,logflare,vector,analytics,pg_meta,pooler,inbucket,storage > "$RUNNER_TEMP/local-supabase-start.log" 2>&1 || {
+            echo "::error::Isolated Supabase startup failed; private service output is withheld."
+            exit 1
+          }
+          echo "Isolated local Supabase services: PASS"
+
+      - name: Rebuild and verify the complete local migration history
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          supabase db reset --local > "$RUNNER_TEMP/local-supabase-reset.log" 2>&1 || {
+            echo "::error::Applying the private migration history to disposable PostgreSQL failed; SQL output is withheld."
+            exit 1
+          }
+          supabase migration list --local > "$RUNNER_TEMP/local-supabase-migrations.log" 2>&1 || {
+            echo "::error::Local migration-history verification failed; output is withheld."
+            exit 1
+          }
+          test -f supabase/config.toml
+          echo "Complete local migration reset and history: PASS"
+
+      - name: Test real React signup, invite preservation and revoked-invite rejection
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export LOCAL_SUPABASE_URL="${API_URL:-http://127.0.0.1:54321}"
+          export LOCAL_SUPABASE_ANON_KEY="${ANON_KEY:?Local anon key missing}"
+          export LOCAL_SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:?Local service-role key missing}"
+          node scripts/local-human-invite-e2e.mjs > "$RUNNER_TEMP/local-human-invite.log" 2>&1 || {
+            echo "::error::Real browser signup/invitation E2E failed; detailed local-auth output is withheld."
+            exit 1
+          }
+          echo "Human signup, invite preservation, re-entry and revocation E2E: PASS"
+
+      - name: Verify local Vault and private bridge-state database boundaries
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          : "${DB_URL:?Local Supabase database URL missing}"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rub_minds_mcp_vault_encryption_key.sql > "$RUNNER_TEMP/local-vault-test.log" 2>&1 || {
+            echo "::error::Vault key access-boundary test failed; SQL output is withheld."
+            exit 1
+          }
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/mcp_bridge_state.sql > "$RUNNER_TEMP/local-bridge-state-test.log" 2>&1 || {
+            echo "::error::Private MCP bridge-state schema/grants test failed; SQL output is withheld."
+            exit 1
+          }
+          echo "Vault and private bridge-state database tests: PASS"
+
+      - name: Start local MCP Edge Function with disposable credentials
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          : "${SERVICE_ROLE_KEY:?Local Supabase service-role key missing}"
+          cat > "$RUNNER_TEMP/local-mcp.env" <<EOF
+          SUPABASE_URL=${API_URL:-http://127.0.0.1:54321}
+          SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}
+          EOF
+          supabase functions serve rub-minds-mcp --env-file "$RUNNER_TEMP/local-mcp.env" > "$RUNNER_TEMP/local-mcp-edge.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/local-mcp-edge.pid"
+          for attempt in $(seq 1 60); do
+            status_code="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:54321/functions/v1/rub-minds-mcp || true)"
+            if [ "$status_code" = "405" ]; then
+              echo "Local MCP Edge Function readiness: PASS"
+              exit 0
+            fi
+            if ! kill -0 "$(cat "$RUNNER_TEMP/local-mcp-edge.pid")" 2>/dev/null; then
+              echo "::error::Local MCP Edge Function exited before becoming ready; logs are withheld."
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "::error::Local MCP Edge Function did not become ready within the readiness window."
+          exit 1
+
+      - name: Exercise official MCP SDK, two-AI collaboration, realtime, bridge-state and RLS
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export LOCAL_SUPABASE_URL="${API_URL:-http://127.0.0.1:54321}"
+          export LOCAL_SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:?Local service-role key missing}"
+          export LOCAL_SUPABASE_ANON_KEY="${ANON_KEY:?Local anon key missing}"
+          export LOCAL_MCP_ENDPOINT="http://127.0.0.1:54321/functions/v1/rub-minds-mcp"
+          node scripts/local-mcp-sdk-e2e.mjs > "$RUNNER_TEMP/local-mcp-sdk-e2e.log" 2>&1 || {
+            echo "::error::Official MCP SDK interoperability/collaboration E2E failed; detailed room/session output is withheld."
+            exit 1
+          }
+          echo "Official MCP SDK, independent AI sessions, group messaging, bridge-state and RLS E2E: PASS"
+
+      - name: Start local Backroom device Edge Function
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          : "${SERVICE_ROLE_KEY:?Local Supabase service-role key missing}"
+          if [ -f "$RUNNER_TEMP/local-mcp-edge.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/local-mcp-edge.pid")" 2>/dev/null || true
+          fi
+          cat > "$RUNNER_TEMP/local-backroom-device.env" <<EOF
+          SUPABASE_URL=${API_URL:-http://127.0.0.1:54321}
+          SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}
+          BACKROOM_DEVICE_ALLOWED_ORIGINS=
+          EOF
+          supabase functions serve backroom-device --env-file "$RUNNER_TEMP/local-backroom-device.env" > "$RUNNER_TEMP/local-backroom-device-edge.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/local-backroom-device-edge.pid"
+          for attempt in $(seq 1 60); do
+            status_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --request POST http://127.0.0.1:54321/functions/v1/backroom-device --header "Content-Type: application/json" --data '{}' || true)"
+            if [ "$status_code" = "400" ]; then
+              echo "Local Backroom device Edge Function readiness: PASS"
+              exit 0
+            fi
+            if ! kill -0 "$(cat "$RUNNER_TEMP/local-backroom-device-edge.pid")" 2>/dev/null; then
+              echo "::error::Local Backroom device Edge Function exited before becoming ready; logs are withheld."
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "::error::Local Backroom device Edge Function did not become ready within the readiness window."
+          exit 1
+
+      - name: Test Backroom device pairing, ownership, inventory and revocation
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export LOCAL_SUPABASE_URL="${API_URL:-http://127.0.0.1:54321}"
+          export LOCAL_SUPABASE_ANON_KEY="${ANON_KEY:?Local anon key missing}"
+          export LOCAL_SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:?Local service-role key missing}"
+          node scripts/local-backroom-device-e2e.mjs > "$RUNNER_TEMP/local-backroom-device-e2e.log" 2>&1 || {
+            echo "::error::Backroom device pairing/authorization E2E failed; detailed device/session output is withheld."
+            exit 1
+          }
+          echo "Backroom device pairing, ownership, inventory, session close and revocation E2E: PASS"
+
+      - name: Stop disposable Supabase services
+        if: always()
+        shell: bash
+        run: |
+          if [ -d private-rub-minds ] && [ -f private-rub-minds/supabase/config.toml ]; then
+            cd private-rub-minds
+            supabase stop --no-backup > "$RUNNER_TEMP/local-supabase-stop-final.log" 2>&1 || true
+          fi
+
   windows-companion:
     name: Windows native companion tests and build verification
     if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
@@ -508,6 +764,16 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:RUB_MINDS_READ_TOKEN)) {
             throw "Add the RUB_MINDS_READ_TOKEN repository secret. See docs/PRIVATE_RUB_MINDS_CI.md."
           }
+
+      - name: Validate selected private source branch
+        shell: bash
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          if [ -z "$SOURCE_REF" ] || [ "${#SOURCE_REF}" -gt 120 ] || ! git check-ref-format --branch "$SOURCE_REF" >/dev/null 2>&1; then
+            echo "::error::Invalid private source branch name."
+            exit 2
+          fi
 
       - name: Check out private Rub Minds source (ephemeral runner only)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
