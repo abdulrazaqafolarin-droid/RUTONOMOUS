@@ -93,6 +93,14 @@ class PrivateWorkflowContractTests(unittest.TestCase):
         ):
             self.assertIn(sql_test, self.workflow, f"missing SQL regression test: {sql_test}")
 
+    def test_private_source_job_parses_and_lints_its_workflow_definitions(self) -> None:
+        block = self._job("web-and-edge")
+        self.assertIn("Parse all private Rub Minds GitHub Actions workflow YAML files", block)
+        self.assertIn("ruby -e 'require \\"yaml\\";", block)
+        self.assertIn("Lint private Rub Minds workflows with pinned actionlint", block)
+        self.assertIn("private-rub-minds/.github/workflows/*.yml", block)
+        self.assertIn("sha256sum --check --status", block)
+
     def test_android_job_runs_provider_identity_probe_regressions_before_gradle(self) -> None:
         block = self._job("android-companion")
         step = "Run synthetic provider-conversation probe regression tests"
