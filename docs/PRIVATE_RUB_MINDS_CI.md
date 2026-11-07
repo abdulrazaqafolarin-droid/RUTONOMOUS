@@ -4,7 +4,7 @@ RUTONOMOUS remains a public, sanitised test harness. The workflow in this reposi
 
 ## What the private validation workflow does
 
-The workflow is manual-only. It runs only when dispatched from RUTONOMOUS main by the repository owner, and it checks out the selected private Rub Minds branch onto temporary GitHub-hosted runners.
+The workflow is manual-only. It runs only when dispatched from RUTONOMOUS main by the repository owner, and it checks out the selected private Rub Minds branch onto temporary GitHub-hosted runners. A shared preflight validates the selected ref and confirms that the read-only token exists before any test job starts.
 
 It covers five independent validation groups:
 
