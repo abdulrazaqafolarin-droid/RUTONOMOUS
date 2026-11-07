@@ -1,0 +1,37 @@
+name: Rub Minds Test Lab
+
+on:
+  push:
+    paths:
+      - "rub-minds-test-lab/**"
+      - ".github/workflows/rub-minds-test-lab.yml"
+  pull_request:
+    paths:
+      - "rub-minds-test-lab/**"
+      - ".github/workflows/rub-minds-test-lab.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rub-minds-test-lab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-contract-tests:
+    name: Synthetic acceptance contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out test lab
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Check Python syntax
+        run: python3 -m compileall -q rub-minds-test-lab/contract_model rub-minds-test-lab/tests
+
+      - name: Run synthetic contract tests
+        working-directory: rub-minds-test-lab
+        run: python3 -m unittest discover -s tests -v
