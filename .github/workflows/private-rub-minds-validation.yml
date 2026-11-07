@@ -1,0 +1,585 @@
+name: Private Rub Minds validation on free runners
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Private Rub Minds branch or tag to validate
+        required: true
+        type: string
+        default: feat/native-provider-digest-queue
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-rub-minds-validation
+  cancel-in-progress: true
+
+jobs:
+  web-and-edge:
+    name: Web, Node, Deno and browser tests
+    if: github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Confirm the private read-only token is configured
+        env:
+          RUB_MINDS_READ_TOKEN: ${{ secrets.RUB_MINDS_READ_TOKEN }}
+        run: |
+          if [ -z "$RUB_MINDS_READ_TOKEN" ]; then
+            echo "::error::Add the RUB_MINDS_READ_TOKEN repository secret. See docs/PRIVATE_RUB_MINDS_CI.md."
+            exit 2
+          fi
+
+      - name: Validate source ref
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          if [ -z "$SOURCE_REF" ] || [ "${#SOURCE_REF}" -gt 120 ] || ! git check-ref-format --branch "$SOURCE_REF" >/dev/null 2>&1; then
+            echo "::error::Invalid private source branch or tag name."
+            exit 2
+          fi
+
+      - name: Check out private Rub Minds source (ephemeral runner only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: abdulrazaqafolarin-droid/Rub-minds
+          ref: ${{ inputs.source_ref }}
+          token: ${{ secrets.RUB_MINDS_READ_TOKEN }}
+          path: private-rub-minds
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - name: Install locked dependencies
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund > "$RUNNER_TEMP/npm-ci.log" 2>&1 || {
+            echo "::error::Private dependency installation failed. Detailed output is withheld on this public run."
+            exit 1
+          }
+          echo "Locked dependencies: PASS"
+
+      - name: Enforce dependency security audit
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          npm audit --audit-level=moderate > "$RUNNER_TEMP/npm-audit.log" 2>&1 || {
+            echo "::error::Dependency audit gate failed. Detailed output is withheld on this public run."
+            exit 1
+          }
+          echo "Dependency audit: PASS"
+
+      - name: Run full web build and registered Node regression suites
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          npm run build > "$RUNNER_TEMP/private-build.log" 2>&1 || {
+            echo "::error::Web build or a registered prebuild test suite failed. Detailed output is withheld on this public run."
+            exit 1
+          }
+          echo "Web build and registered Node suites: PASS"
+
+      - name: Run Vitest suite
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          npm test > "$RUNNER_TEMP/private-vitest.log" 2>&1 || {
+            echo "::error::Vitest suite failed. Detailed output is withheld on this public run."
+            exit 1
+          }
+          echo "Vitest: PASS"
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2
+        with:
+          deno-version: v2.x
+
+      - name: Run Deno helper tests and Edge Function type checks
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_private_check() {
+            label="$1"
+            shift
+            if "$@" > "$RUNNER_TEMP/deno-check.log" 2>&1; then
+              echo "$label: PASS"
+            else
+              echo "::error::$label failed. Detailed output is withheld on this public run."
+              exit 1
+            fi
+          }
+          run_private_check "Public rate-limit helper" deno test supabase/functions/_shared/public-rate-limit.deno-test.ts
+          run_private_check "Backroom Edge Functions" deno check supabase/functions/backroom-config/index.ts supabase/functions/backroom-wake/index.ts supabase/functions/backroom-device/index.ts
+          run_private_check "Invite Edge Functions" deno check supabase/functions/redeem-ai-invite/index.ts supabase/functions/ai-invite-discovery/index.ts
+          run_private_check "Session-memory Edge Function" deno check supabase/functions/session-memory/index.ts
+          run_private_check "Hosted MCP Edge Function" deno check supabase/functions/rub-minds-mcp/index.ts
+
+      - name: Install Chromium for controlled browser suites
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          npx playwright install --with-deps chromium > "$RUNNER_TEMP/playwright-install.log" 2>&1 || {
+            echo "::error::Chromium setup failed. Detailed output is withheld on this public run."
+            exit 1
+          }
+          echo "Chromium setup: PASS"
+
+      - name: Run original-session browser proof and Backroom browser regressions
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          npm run test:browser > "$RUNNER_TEMP/browser-poc.log" 2>&1 || {
+            echo "::error::Controlled browser proof failed. Detailed output is withheld on this public run."
+            exit 1
+          }
+          npm run test:backroom:browser > "$RUNNER_TEMP/backroom-browser.log" 2>&1 || {
+            echo "::error::Backroom browser regression suite failed. Detailed output is withheld on this public run."
+            exit 1
+          }
+          echo "Browser regression suites: PASS"
+
+  durable-queue-sql:
+    name: Backroom, native-wake and group-task PostgreSQL tests
+    if: github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Confirm the private read-only token is configured
+        env:
+          RUB_MINDS_READ_TOKEN: ${{ secrets.RUB_MINDS_READ_TOKEN }}
+        run: |
+          if [ -z "$RUB_MINDS_READ_TOKEN" ]; then
+            echo "::error::Add the RUB_MINDS_READ_TOKEN repository secret. See docs/PRIVATE_RUB_MINDS_CI.md."
+            exit 2
+          fi
+
+      - name: Check out private Rub Minds source (ephemeral runner only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: abdulrazaqafolarin-droid/Rub-minds
+          ref: ${{ inputs.source_ref }}
+          token: ${{ secrets.RUB_MINDS_READ_TOKEN }}
+          path: private-rub-minds
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update > "$RUNNER_TEMP/apt-update.log" 2>&1
+          sudo apt-get install -y postgresql-client > "$RUNNER_TEMP/apt-install.log" 2>&1 || {
+            echo "::error::PostgreSQL client installation failed."
+            exit 1
+          }
+
+      - name: Create isolated Supabase-compatible schema fixtures
+        env:
+          PGPASSWORD: postgres
+        shell: bash
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 > "$RUNNER_TEMP/pg-fixture.log" 2>&1 <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin;
+          create schema auth;
+          create table auth.users (id uuid primary key);
+          create or replace function auth.uid()
+          returns uuid
+          language sql stable
+          set search_path = ''
+          as $$
+            select nullif(pg_catalog.current_setting('request.jwt.claim.sub', true), '')::uuid
+          $$;
+          create publication supabase_realtime;
+          create table public.rooms (id uuid primary key, owner_id uuid not null references auth.users(id), title text not null default 'CI room', objective text not null default '', created_at timestamptz not null default now());
+          create table public.participants (
+            id uuid primary key,
+            room_id uuid not null references public.rooms(id),
+            display_name text not null default 'CI participant',
+            user_id uuid references auth.users(id),
+            kind text not null check (kind in ('human','original_session','model','external_agent')),
+            status text not null default 'waiting'
+          );
+          create table public.agent_connections (
+            id uuid primary key default gen_random_uuid(),
+            room_id uuid not null references public.rooms(id),
+            participant_id uuid not null references public.participants(id),
+            owner_id uuid not null references auth.users(id),
+            credential_digest text not null unique,
+            expires_at timestamptz not null,
+            revoked_at timestamptz
+          );
+          create table public.messages (
+            id uuid primary key default gen_random_uuid(),
+            room_id uuid not null references public.rooms(id),
+            sender_id uuid not null references public.participants(id),
+            body text not null check (char_length(body) between 1 and 10000),
+            source_message_id text,
+            created_at timestamptz not null default now()
+          );
+          create table public.rub_minds_mcp_sessions (
+            session_digest text primary key,
+            agent_credential_ciphertext text,
+            agent_credential_digest text,
+            room_id uuid,
+            participant_id uuid,
+            last_seen_at timestamptz not null default now(),
+            expires_at timestamptz not null,
+            terminated_at timestamptz
+          );
+          create table public.rub_minds_mcp_join_requests (
+            session_digest text primary key
+              check (length(session_digest) = 64 and session_digest !~ '[^a-f0-9]'),
+            invite_token_hash text not null
+              check (length(invite_token_hash) = 64 and invite_token_hash !~ '[^a-f0-9]'),
+            agent_label text not null
+              check (char_length(agent_label) between 1 and 80),
+            credential_digest text not null
+              check (length(credential_digest) = 64 and credential_digest !~ '[^a-f0-9]'),
+            room_id uuid not null,
+            participant_id uuid not null,
+            expires_at timestamptz not null,
+            created_at timestamptz not null default now()
+          );
+          alter table public.rub_minds_mcp_join_requests enable row level security;
+          revoke all on table public.rub_minds_mcp_join_requests from public, anon, authenticated;
+          grant all on table public.rub_minds_mcp_join_requests to service_role;
+          create index rub_minds_mcp_join_requests_expiry_idx
+            on public.rub_minds_mcp_join_requests (expires_at);
+          create table public.backroom_devices (
+            device_id uuid primary key,
+            owner_id uuid not null references auth.users(id),
+            token_digest text not null,
+            device_label text not null,
+            platform text not null,
+            status text not null default 'active'
+          );
+          create table public.backroom_device_room_bindings (
+            device_id uuid not null references public.backroom_devices(device_id),
+            room_id uuid not null references public.rooms(id),
+            owner_id uuid not null references auth.users(id),
+            created_at timestamptz not null default now(),
+            revoked_at timestamptz,
+            primary key(device_id,room_id)
+          );
+          create table public.backroom_device_apps (
+            device_id uuid not null references public.backroom_devices(device_id),
+            package_name text not null,
+            app_label text not null,
+            signing_certificate_sha256 text not null,
+            version_name text not null default '',
+            primary key(device_id,package_name)
+          );
+          create table public.backroom_desktop_sessions (
+            session_id uuid primary key,
+            device_id uuid not null references public.backroom_devices(device_id),
+            room_id uuid not null references public.rooms(id),
+            requested_by uuid not null references auth.users(id),
+            session_type text not null,
+            status text not null default 'active',
+            created_at timestamptz not null default now(),
+            expires_at timestamptz not null,
+            stopped_at timestamptz
+          );
+          create table public.backroom_android_commands (
+            id uuid primary key default gen_random_uuid(),
+            device_id uuid not null references public.backroom_devices(device_id) on delete cascade,
+            room_id uuid not null references public.rooms(id) on delete cascade,
+            session_id uuid not null references public.backroom_desktop_sessions(session_id) on delete cascade,
+            request_id uuid not null,
+            command jsonb not null,
+            status text not null default 'pending'
+              check (status in ('pending','leased','acked','rejected','expired')),
+            result text,
+            result_payload jsonb,
+            created_at timestamptz not null default now(),
+            expires_at timestamptz not null,
+            lease_until timestamptz,
+            acked_at timestamptz,
+            unique(device_id,request_id),
+            check(expires_at>created_at)
+          );
+          alter table public.backroom_android_commands enable row level security;
+          revoke all on table public.backroom_android_commands from public,anon,authenticated;
+          grant all on table public.backroom_android_commands to service_role;
+          SQL
+          if [ "$?" -ne 0 ]; then
+            echo "::error::Isolated PostgreSQL fixture setup failed. Detailed output is withheld."
+            exit 1
+          fi
+          echo "Isolated PostgreSQL fixtures: PASS"
+
+      - name: Apply private Backroom and native-wake migrations
+        env:
+          PGPASSWORD: postgres
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set -euo pipefail
+          migrations=(
+            20261029090000_backroom_wake_queue.sql
+            20261101221132_mcp_bridge_state.sql
+            20261102221500_backroom_wake_grant_24h_auto_consent.sql
+            20261102223000_revoke_backroom_wake_on_mcp_leave.sql
+            20261104111500_backroom_provider_conversation_identity_queue.sql
+            20261105110000_backroom_android_native_wake_queue_settlement.sql
+            20261106143000_backroom_android_native_binding_attestation.sql
+            20261107090000_backroom_android_native_wake_forwarder.sql
+            20261107110000_backroom_android_native_wake_attested_settlement.sql
+          )
+          for migration in "${migrations[@]}"; do
+            if psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f "supabase/migrations/$migration" > "$RUNNER_TEMP/private-migration.log" 2>&1; then
+              echo "$migration: PASS"
+            else
+              echo "::error::Migration $migration failed. Detailed SQL output is withheld on this public run."
+              exit 1
+            fi
+          done
+
+      - name: Run real durable-queue, provider identity and native settlement SQL tests
+        env:
+          PGPASSWORD: postgres
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/tests/backroom_wake_queue.sql > "$RUNNER_TEMP/backroom-sql-test.log" 2>&1 || {
+            echo "::error::Backroom durable-queue/native-settlement SQL tests failed. Detailed output is withheld on this public run."
+            exit 1
+          }
+          echo "Backroom durable-queue/native-settlement SQL tests: PASS"
+
+      - name: Apply and test group-task coordination migrations
+        env:
+          PGPASSWORD: postgres
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set -euo pipefail
+          migrations=(
+            20261101040000_group_task_coordination.sql
+            20261101164016_group_task_fk_indexes.sql
+            20261101221147_group_task_review_criterion_evidence.sql
+            20261101221342_restrict_group_task_review_service_role_execute.sql
+          )
+          for migration in "${migrations[@]}"; do
+            if psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f "supabase/migrations/$migration" > "$RUNNER_TEMP/group-task-migration.log" 2>&1; then
+              echo "$migration: PASS"
+            else
+              echo "::error::Migration $migration failed. Detailed SQL output is withheld on this public run."
+              exit 1
+            fi
+          done
+          for test_file in supabase/tests/group_task_coordination.sql supabase/tests/mcp_bridge_state.sql; do
+            if psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f "$test_file" > "$RUNNER_TEMP/group-task-test.log" 2>&1; then
+              echo "$test_file: PASS"
+            else
+              echo "::error::$test_file failed. Detailed SQL output is withheld on this public run."
+              exit 1
+            fi
+          done
+
+  android-companion:
+    name: Android tests and compile-only APK verification
+    if: github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Confirm the private read-only token is configured
+        env:
+          RUB_MINDS_READ_TOKEN: ${{ secrets.RUB_MINDS_READ_TOKEN }}
+        run: |
+          if [ -z "$RUB_MINDS_READ_TOKEN" ]; then
+            echo "::error::Add the RUB_MINDS_READ_TOKEN repository secret. See docs/PRIVATE_RUB_MINDS_CI.md."
+            exit 2
+          fi
+
+      - name: Check out private Rub Minds source (ephemeral runner only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: abdulrazaqafolarin-droid/Rub-minds
+          ref: ${{ inputs.source_ref }}
+          token: ${{ secrets.RUB_MINDS_READ_TOKEN }}
+          path: private-rub-minds
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - name: Set up Java
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          gradle-version: '8.10.2'
+          cache-provider: basic
+
+      - name: Run Android and device protocol Node regression tests
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          node --test android-companion/scripts/manifest-policy.node-test.mjs supabase/functions/backroom-device/android-streaming-protocol.node-test.mjs supabase/functions/backroom-device/realtime-broadcast.node-test.mjs supabase/functions/backroom-device/android-streaming-endpoint.node-test.mjs integrations/backroom/android-touch-policy.node-test.mjs integrations/backroom/device-frame-entry.node-test.mjs > "$RUNNER_TEMP/android-node.log" 2>&1 || {
+            echo "::error::Android/device protocol tests failed. Detailed output is withheld on this public run."
+            exit 1
+          }
+          echo "Android/device protocol tests: PASS"
+
+      - name: Run Android unit tests, merged-manifest gate and compile-only APK
+        working-directory: private-rub-minds/android-companion
+        env:
+          SUPABASE_URL: ""
+          SUPABASE_PUBLISHABLE_KEY: ""
+        shell: bash
+        run: |
+          gradle --no-daemon :app:testDebugUnitTest :app:auditDebugGuestHostManifest :app:assembleDebug > "$RUNNER_TEMP/android-gradle.log" 2>&1 || {
+            echo "::error::Android Gradle tests or compile-only APK build failed. Detailed output is withheld on this public run."
+            exit 1
+          }
+          echo "Android unit tests and compile-only APK build: PASS"
+
+      - name: Verify APK signature, manifest report and fingerprint (no artifact upload)
+        working-directory: private-rub-minds/android-companion
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="app/build/outputs/apk/debug/app-debug.apk"
+          report="app/build/reports/guest-host-manifest/debug.txt"
+          verification="$RUNNER_TEMP/apksigner-verification.txt"
+          apksigner="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          test -s "$apk"
+          test -s "$report"
+          test -x "$apksigner"
+          "$apksigner" verify --verbose --print-certs "$apk" > "$verification" 2>&1
+          apk_sha="$(sha256sum "$apk" | awk '{print $1}')"
+          manifest_sha="$(sed -n 's/^manifestSha256=//p' "$report" | head -n 1)"
+          signer_sha="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$verification" | head -n 1 | tr '[:upper:]' '[:lower:]')"
+          apk_size="$(stat -c '%s' "$apk")"
+          test -n "$apk_sha" && test -n "$manifest_sha" && test -n "$signer_sha" && test "$apk_size" -gt 0
+          echo "APK signature: PASS"
+          echo "APK size bytes: $apk_size"
+          echo "APK SHA-256: $apk_sha"
+          echo "Manifest SHA-256: $manifest_sha"
+          echo "Debug signer SHA-256: $signer_sha"
+          echo "Backend configuration: empty; build/manifest verification only"
+          rm -f "$apk" "$verification"
+
+  windows-companion:
+    name: Windows native companion tests and build verification
+    if: github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - name: Confirm the private read-only token is configured
+        shell: pwsh
+        env:
+          RUB_MINDS_READ_TOKEN: ${{ secrets.RUB_MINDS_READ_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUB_MINDS_READ_TOKEN)) {
+            throw "Add the RUB_MINDS_READ_TOKEN repository secret. See docs/PRIVATE_RUB_MINDS_CI.md."
+          }
+
+      - name: Check out private Rub Minds source (ephemeral runner only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: abdulrazaqafolarin-droid/Rub-minds
+          ref: ${{ inputs.source_ref }}
+          token: ${{ secrets.RUB_MINDS_READ_TOKEN }}
+          path: private-rub-minds
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # stable
+        with:
+          toolchain: stable
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install locked JavaScript dependencies
+        working-directory: private-rub-minds
+        shell: pwsh
+        run: |
+          npm ci *> "$env:RUNNER_TEMP\npm-ci.log"
+          if ($LASTEXITCODE -ne 0) { throw "Private dependency installation failed; detailed output withheld." }
+          Write-Output "Locked dependencies: PASS"
+
+      - name: Run web build and compile the companion WebView
+        working-directory: private-rub-minds
+        shell: pwsh
+        env:
+          VITE_SUPABASE_URL: ""
+          VITE_SUPABASE_ANON_KEY: ""
+        run: |
+          npm run build *> "$env:RUNNER_TEMP\web-build.log"
+          if ($LASTEXITCODE -ne 0) { throw "Web build and registered prebuild tests failed; detailed output withheld." }
+          npm run build:desktop-companion *> "$env:RUNNER_TEMP\desktop-webview.log"
+          if ($LASTEXITCODE -ne 0) { throw "Companion WebView build failed; detailed output withheld." }
+          Write-Output "Web build and companion WebView: PASS"
+
+      - name: Run native Rust tests
+        working-directory: private-rub-minds
+        shell: pwsh
+        run: |
+          cargo test --manifest-path desktop-companion/src-tauri/Cargo.toml --target x86_64-pc-windows-msvc *> "$env:RUNNER_TEMP\rust-test.log"
+          if ($LASTEXITCODE -ne 0) { throw "Native Windows Rust tests failed; detailed output withheld." }
+          Write-Output "Native Windows Rust tests: PASS"
+
+      - name: Run companion protocol and authorization regression tests
+        working-directory: private-rub-minds
+        shell: pwsh
+        run: |
+          npm run test:companion *> "$env:RUNNER_TEMP\companion-tests.log"
+          if ($LASTEXITCODE -ne 0) { throw "Companion protocol/authorization tests failed; detailed output withheld." }
+          Write-Output "Companion protocol/authorization tests: PASS"
+
+      - name: Link and fingerprint the Windows release executable (no artifact upload)
+        working-directory: private-rub-minds
+        shell: pwsh
+        run: |
+          cargo build --release --manifest-path desktop-companion/src-tauri/Cargo.toml --target x86_64-pc-windows-msvc *> "$env:RUNNER_TEMP\rust-release.log"
+          if ($LASTEXITCODE -ne 0) { throw "Windows release link failed; detailed output withheld." }
+          $exe = "desktop-companion/src-tauri/target/x86_64-pc-windows-msvc/release/rub-minds-backroom-companion.exe"
+          if (-not (Test-Path $exe -PathType Leaf)) { throw "Windows companion executable is missing." }
+          $hash = (Get-FileHash -Path $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          $size = (Get-Item $exe).Length
+          if ($size -le 0) { throw "Windows companion executable is empty." }
+          Write-Output "Windows executable link: PASS"
+          Write-Output "Windows executable size bytes: $size"
+          Write-Output "Windows executable SHA-256: $hash"
+          Write-Output "Backend configuration: not supplied; build verification only"
+          Remove-Item $exe -Force
