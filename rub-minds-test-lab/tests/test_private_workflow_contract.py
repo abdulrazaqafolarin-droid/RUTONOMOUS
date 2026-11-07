@@ -96,7 +96,7 @@ class PrivateWorkflowContractTests(unittest.TestCase):
     def test_private_source_job_parses_and_lints_its_workflow_definitions(self) -> None:
         block = self._job("web-and-edge")
         self.assertIn("Parse all private Rub Minds GitHub Actions workflow YAML files", block)
-        self.assertIn("ruby -e 'require \\"yaml\\";", block)
+        self.assertIn('require "yaml";', block)
         self.assertIn("Lint private Rub Minds workflows with pinned actionlint", block)
         self.assertIn("private-rub-minds/.github/workflows/*.yml", block)
         self.assertIn("sha256sum --check --status", block)
