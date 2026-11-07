@@ -19,7 +19,7 @@ concurrency:
 jobs:
   web-and-edge:
     name: Web, Node, Deno and browser tests
-    if: github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
+    if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -148,7 +148,7 @@ jobs:
 
   durable-queue-sql:
     name: Backroom, native-wake and group-task PostgreSQL tests
-    if: github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
+    if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -400,7 +400,7 @@ jobs:
 
   android-companion:
     name: Android tests and compile-only APK verification
-    if: github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
+    if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -496,7 +496,7 @@ jobs:
 
   windows-companion:
     name: Windows native companion tests and build verification
-    if: github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
+    if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
     runs-on: windows-latest
     timeout-minutes: 35
     steps:
