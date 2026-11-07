@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: Existing private Rub Minds branch to validate
+        description: Existing private Rub Minds branch to validate (branch names only)
         required: true
         type: string
         default: feat/native-provider-digest-queue
@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$SOURCE_REF" ] || [ "${#SOURCE_REF}" -gt 120 ] || ! git check-ref-format --branch "$SOURCE_REF" >/dev/null 2>&1; then
-            echo "::error::Invalid private source branch or tag name."
+            echo "::error::Invalid private source branch name."
             exit 2
           fi
           echo "Private source ref format: PASS"
