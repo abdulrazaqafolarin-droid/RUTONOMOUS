@@ -520,14 +520,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-              env:
-                RUB_MINDS_READ_TOKEN: ${{ secrets.RUB_MINDS_READ_TOKEN }}
-              run: |
-                if [ -z "$RUB_MINDS_READ_TOKEN" ]; then
-                  echo "::error::Add the RUB_MINDS_READ_TOKEN repository secret. See docs/PRIVATE_RUB_MINDS_CI.md."
-                  exit 2
-                fi
-      
+      - name: Confirm the private read-only token is configured
+        env:
+          RUB_MINDS_READ_TOKEN: ${{ secrets.RUB_MINDS_READ_TOKEN }}
+        run: |
+          if [ -z "$RUB_MINDS_READ_TOKEN" ]; then
+            echo "::error::Add the RUB_MINDS_READ_TOKEN repository secret. See docs/PRIVATE_RUB_MINDS_CI.md."
+            exit 2
+          fi
+
       - name: Validate selected private source branch
         env:
           SOURCE_REF: ${{ inputs.source_ref }}
