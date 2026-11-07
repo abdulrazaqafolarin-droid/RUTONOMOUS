@@ -36,6 +36,11 @@ jobs:
       - name: Scan public test repository for private material
         run: python3 scripts/check_public_safety.py
 
+      - name: Parse every GitHub Actions workflow YAML file
+        shell: bash
+        run: |
+          ruby -e 'require "yaml"; Dir.glob(".github/workflows/*.yml").sort.each { |path| YAML.parse_file(path); puts "#{path}: YAML syntax PASS" }'
+
       - name: Check Python syntax
         run: python3 -m compileall -q rub-minds-test-lab/contract_model rub-minds-test-lab/tests
 
