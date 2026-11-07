@@ -55,6 +55,44 @@ class PrivateWorkflowContractTests(unittest.TestCase):
         self.assertEqual(self.workflow.count("persist-credentials: false"), 5)
         self.assertEqual(self.workflow.count("path: private-rub-minds"), 5)
 
+    def test_pull_request_and_push_changes_both_run_the_public_safety_gate(self) -> None:
+        lab = (ROOT / ".github" / "workflows" / "rub-minds-test-lab.yml").read_text(encoding="utf-8")
+        pull_request = lab.split("  pull_request:", 1)[1].split("  workflow_dispatch:", 1)[0]
+        for path in (
+            "rub-minds-test-lab/**",
+            ".github/workflows/rub-minds-test-lab.yml",
+            ".github/workflows/private-rub-minds-validation.yml",
+            "scripts/check_public_safety.py",
+            "docs/PRIVATE_RUB_MINDS_CI.md",
+            "README.md",
+        ):
+            self.assertIn(path, pull_request)
+
+    def test_selected_backroom_and_group_task_migration_matrix_is_complete(self) -> None:
+        migrations = [
+            "20261029090000_backroom_wake_queue.sql",
+            "20261101221132_mcp_bridge_state.sql",
+            "20261102221500_backroom_wake_grant_24h_auto_consent.sql",
+            "20261102223000_revoke_backroom_wake_on_mcp_leave.sql",
+            "20261104111500_backroom_provider_conversation_identity_queue.sql",
+            "20261105110000_backroom_android_native_wake_queue_settlement.sql",
+            "20261106143000_backroom_android_native_binding_attestation.sql",
+            "20261107090000_backroom_android_native_wake_forwarder.sql",
+            "20261107110000_backroom_android_native_wake_attested_settlement.sql",
+            "20261101040000_group_task_coordination.sql",
+            "20261101164016_group_task_fk_indexes.sql",
+            "20261101221147_group_task_review_criterion_evidence.sql",
+            "20261101221342_restrict_group_task_review_service_role_execute.sql",
+        ]
+        for migration in migrations:
+            self.assertIn(migration, self.workflow, f"missing migration: {migration}")
+        for sql_test in (
+            "supabase/tests/backroom_wake_queue.sql",
+            "supabase/tests/group_task_coordination.sql",
+            "supabase/tests/mcp_bridge_state.sql",
+        ):
+            self.assertIn(sql_test, self.workflow, f"missing SQL regression test: {sql_test}")
+
     def test_sql_fixture_includes_supabase_auth_and_realtime_contracts(self) -> None:
         self.assertIn("create schema auth;", self.workflow)
         self.assertIn("create or replace function auth.uid()", self.workflow)
