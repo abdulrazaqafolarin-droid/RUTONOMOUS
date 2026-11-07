@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.check_public_safety import forbidden_path, inspect_text
+from scripts.check_public_safety import forbidden_path, inspect_text, scan
 
 
 class PublicSafetyScannerTests(unittest.TestCase):
