@@ -93,6 +93,13 @@ class PrivateWorkflowContractTests(unittest.TestCase):
         ):
             self.assertIn(sql_test, self.workflow, f"missing SQL regression test: {sql_test}")
 
+    def test_android_job_runs_provider_identity_probe_regressions_before_gradle(self) -> None:
+        block = self._job("android-companion")
+        step = "Run synthetic provider-conversation probe regression tests"
+        self.assertIn(step, block)
+        self.assertIn("python3 -m unittest discover -s android-companion/scripts", block)
+        self.assertLess(block.index(step), block.index("Run Android unit tests, merged-manifest gate and compile-only APK"))
+
     def test_sql_fixture_includes_supabase_auth_and_realtime_contracts(self) -> None:
         self.assertIn("create schema auth;", self.workflow)
         self.assertIn("create or replace function auth.uid()", self.workflow)
