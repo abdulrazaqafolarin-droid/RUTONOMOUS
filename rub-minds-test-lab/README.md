@@ -1,39 +1,41 @@
-# Rub Minds Test Lab (sanitised starter)
+# Rub Minds Test Lab (sanitised public harness)
 
-This folder is a **public-safe test harness**, not a copy of the Rub Minds application.
+This folder is a **public-safe reference test harness**, not a copy or mirror of the Rub Minds application.
 
-## What this currently tests
+## What it tests
 
-The Python tests exercise a small, independent reference model for the expected Android native-wake acknowledgement contract:
+The Python model exercises selected Backroom durable-wake queue contracts:
 
-- exact-receipt replay is idempotent;
-- the same handoff ID cannot be reused with different evidence;
-- expired leases cannot become successful from late receipts;
-- revoked consent and mismatched binding/provider identities are rejected;
-- proven preflight denials may retry only within the attempt limit;
-- uncertain post-effect outcomes are never reported as success.
-
-**Important limitation:** these tests verify the reference model in this folder. They do not execute the Rub Minds production implementation. A green run is not proof that the app, Supabase migrations, Edge Functions, Android companion, or physical-device flow works.
+- one idempotency key cannot create duplicate jobs or be reused for different request evidence;
+- claims are restricted to the expected host, MCP session digest, and input binding;
+- a lease is unique, bounded, and tied to a short expiry;
+- a valid acknowledgement consumes the lease, while a repeated, stale, expired, or incorrectly scoped ACK is not reported as success;
+- expired leases may be reclaimed with a new token, subject to the five-attempt cap;
+- retry backoff, TTL expiry, owner cancellation, consent revocation, and host revocation are represented;
+- terminal jobs are not claimed again.
 
 ## Run locally
 
-```bash
-python3 -m compileall -q contract_model tests
-python3 -m unittest discover -s tests -v
-```
+    python3 -m compileall -q contract_model tests
+    python3 -m unittest discover -s tests -v
 
 No third-party Python packages are required.
 
 ## Public-repository safety rules
 
-- Never copy the private `Rub-minds` application repository into this folder.
-- Do not add `.env` files, tokens, service-role keys, database dumps, real user data, APKs, signing keys, or private certificates.
-- Use synthetic IDs and synthetic evidence only.
+- Never copy the private Rub Minds application repository into this folder.
+- Do not add .env files, tokens, service-role keys, database dumps, real user data, APKs, signing keys, or private certificates.
+- Use synthetic IDs, digests, events, and evidence only.
 - Do not configure production deployment secrets or production database access.
-- The included workflow has read-only repository permissions and does not deploy.
+- The included GitHub Actions workflow has read-only repository permissions and does not deploy.
+
+## Evidence boundary
+
+A green workflow verifies only the independent reference model and its test runner. It does **not** prove that the private Rub Minds SQL migration, Supabase Edge Functions, Android companion, desktop host, Playwright adapter, or physical-device workflow passes. The private repository remains the source of truth for implementation tests.
 
 ## Next integration steps
 
-1. Add narrowly scoped, sanitised contract fixtures for SQL, Node, and Kotlin boundaries.
-2. Add an adapter that consumes synthetic test traces emitted by local runs.
-3. Run real project tests only from an authorised private checkout or a suitably isolated local runner. Do not publish private implementation source to make public CI green.
+1. Keep this public contract model aligned with reviewed behaviour in private implementation changes.
+2. Run PostgreSQL migration and trigger tests in an isolated database before treating SQL as verified.
+3. Run Node, TypeScript, Deno, and browser suites against an authorised private checkout.
+4. Record implementation commit SHA and real test output separately from this synthetic suite.
