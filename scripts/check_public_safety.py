@@ -67,10 +67,13 @@ def inspect_text(data: str) -> list[str]:
 def scan(root: Path = ROOT) -> list[tuple[str, str]]:
     findings: list[tuple[str, str]] = []
     for path in root.rglob("*"):
-        if not path.is_file() or path.is_symlink():
-            continue
         relative = path.relative_to(root)
         if any(part in IGNORED_DIRS for part in relative.parts):
+            continue
+        if path.is_symlink():
+            findings.append((relative.as_posix(), "symbolic-link"))
+            continue
+        if not path.is_file():
             continue
         path_rule = forbidden_path(relative)
         if path_rule:
