@@ -17,21 +17,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  web-and-edge:
-    name: Web, Node, Deno and browser tests
+  validate:
+    name: Validate owner, source ref and private-read secret
     if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 2
     steps:
+      - name: Validate selected private source ref
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$SOURCE_REF" ] || [ "${#SOURCE_REF}" -gt 120 ] || ! git check-ref-format --branch "$SOURCE_REF" >/dev/null 2>&1; then
+            echo "::error::Invalid private source branch or tag name."
+            exit 2
+          fi
+          echo "Private source ref format: PASS"
+
       - name: Confirm the private read-only token is configured
         env:
           RUB_MINDS_READ_TOKEN: ${{ secrets.RUB_MINDS_READ_TOKEN }}
+        shell: bash
         run: |
           if [ -z "$RUB_MINDS_READ_TOKEN" ]; then
             echo "::error::Add the RUB_MINDS_READ_TOKEN repository secret. See docs/PRIVATE_RUB_MINDS_CI.md."
             exit 2
           fi
+          echo "Private read token: CONFIGURED (value not displayed)"
 
+  web-and-edge:
+    name: Web, Node, Deno and browser tests
+    needs: validate
+    if: needs.validate.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
       - name: Validate selected private source branch
         env:
           SOURCE_REF: ${{ inputs.source_ref }}
@@ -148,7 +169,8 @@ jobs:
 
   durable-queue-sql:
     name: Backroom, native-wake and group-task PostgreSQL tests
-    if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
+    needs: validate
+    if: needs.validate.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -410,7 +432,8 @@ jobs:
 
   android-companion:
     name: Android tests and compile-only APK verification
-    if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
+    needs: validate
+    if: needs.validate.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -753,19 +776,11 @@ jobs:
 
   windows-companion:
     name: Windows native companion tests and build verification
-    if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
+    needs: validate
+    if: needs.validate.result == 'success'
     runs-on: windows-latest
     timeout-minutes: 35
     steps:
-      - name: Confirm the private read-only token is configured
-        shell: pwsh
-        env:
-          RUB_MINDS_READ_TOKEN: ${{ secrets.RUB_MINDS_READ_TOKEN }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:RUB_MINDS_READ_TOKEN)) {
-            throw "Add the RUB_MINDS_READ_TOKEN repository secret. See docs/PRIVATE_RUB_MINDS_CI.md."
-          }
-
       - name: Validate selected private source branch
         shell: bash
         env:
