@@ -1,11 +1,15 @@
 name: Private Rub Minds validation on free runners
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/private-rub-minds-validation.yml
   workflow_dispatch:
     inputs:
       source_ref:
         description: Existing private Rub Minds branch to validate (branch names only)
-        required: true
+        required: false
         type: string
         default: feat/device-frame-ai-runtime-contract
 
@@ -25,7 +29,7 @@ jobs:
     steps:
       - name: Validate selected private source ref
         env:
-          SOURCE_REF: ${{ inputs.source_ref }}
+          SOURCE_REF: ${{ inputs.source_ref || 'feat/device-frame-ai-runtime-contract' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -57,7 +61,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: abdulrazaqafolarin-droid/Rub-minds
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ inputs.source_ref || 'feat/device-frame-ai-runtime-contract' }}
           token: ${{ secrets.RUB_MINDS_READ_TOKEN }}
           path: private-rub-minds
           persist-credentials: false
@@ -202,7 +206,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: abdulrazaqafolarin-droid/Rub-minds
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ inputs.source_ref || 'feat/device-frame-ai-runtime-contract' }}
           token: ${{ secrets.RUB_MINDS_READ_TOKEN }}
           path: private-rub-minds
           persist-credentials: false
@@ -433,7 +437,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: abdulrazaqafolarin-droid/Rub-minds
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ inputs.source_ref || 'feat/device-frame-ai-runtime-contract' }}
           token: ${{ secrets.RUB_MINDS_READ_TOKEN }}
           path: private-rub-minds
           persist-credentials: false
@@ -531,7 +535,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: abdulrazaqafolarin-droid/Rub-minds
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ inputs.source_ref || 'feat/device-frame-ai-runtime-contract' }}
           token: ${{ secrets.RUB_MINDS_READ_TOKEN }}
           path: private-rub-minds
           persist-credentials: false
@@ -735,7 +739,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: abdulrazaqafolarin-droid/Rub-minds
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ inputs.source_ref || 'feat/device-frame-ai-runtime-contract' }}
           token: ${{ secrets.RUB_MINDS_READ_TOKEN }}
           path: private-rub-minds
           persist-credentials: false
