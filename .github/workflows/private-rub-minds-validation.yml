@@ -155,7 +155,9 @@ jobs:
         shell: bash
         run: |
           npm run build > "$RUNNER_TEMP/private-build.log" 2>&1 || {
-            echo "::error::Web build or a registered prebuild test suite failed. Detailed output is withheld on this public run."
+            echo "Safe diagnostic: failing TAP test titles only (no stack traces or test data):"
+            grep -E '^not ok [0-9]+ - ' "$RUNNER_TEMP/private-build.log" | tail -n 30 || true
+            echo "::error::Web build or a registered prebuild test suite failed."
             exit 1
           }
           echo "Web build and registered Node suites: PASS"
@@ -519,7 +521,9 @@ jobs:
         shell: bash
         run: |
           node --test android-companion/scripts/manifest-policy.node-test.mjs supabase/functions/backroom-device/android-streaming-protocol.node-test.mjs supabase/functions/backroom-device/realtime-broadcast.node-test.mjs supabase/functions/backroom-device/android-streaming-endpoint.node-test.mjs integrations/backroom/android-touch-policy.node-test.mjs integrations/backroom/device-frame-entry.node-test.mjs > "$RUNNER_TEMP/android-node.log" 2>&1 || {
-            echo "::error::Android/device protocol tests failed. Detailed output is withheld on this public run."
+            echo "Safe diagnostic: failing TAP test titles only (no stack traces or test data):"
+            grep -E '^not ok [0-9]+ - ' "$RUNNER_TEMP/android-node.log" | tail -n 30 || true
+            echo "::error::Android/device protocol tests failed."
             exit 1
           }
           echo "Android/device protocol tests: PASS"
@@ -673,7 +677,9 @@ jobs:
           export LOCAL_SUPABASE_ANON_KEY="${ANON_KEY:?Local anon key missing}"
           export LOCAL_SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:?Local service-role key missing}"
           node scripts/local-human-invite-e2e.mjs > "$RUNNER_TEMP/local-human-invite.log" 2>&1 || {
-            echo "::error::Real browser signup/invitation E2E failed; detailed local-auth output is withheld."
+            echo "Safe diagnostic: last completed invite-E2E stage only:"
+            grep '^E2E_STAGE:' "$RUNNER_TEMP/local-human-invite.log" | tail -n 1 || true
+            echo "::error::Real browser signup/invitation E2E failed; detailed local-auth output remains withheld."
             exit 1
           }
           echo "Human signup, invite preservation, re-entry and revocation E2E: PASS"
@@ -811,7 +817,11 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ""
         run: |
           npm run build *> "$env:RUNNER_TEMP\web-build.log"
-          if ($LASTEXITCODE -ne 0) { throw "Web build and registered prebuild tests failed; detailed output withheld." }
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "Safe diagnostic: failing TAP test titles only (no stack traces or test data):"
+            Select-String -Path "$env:RUNNER_TEMP\web-build.log" -Pattern '^not ok [0-9]+ - ' | Select-Object -Last 30 | ForEach-Object { $_.Line }
+            throw "Web build and registered prebuild tests failed."
+          }
           npm run build:desktop-companion *> "$env:RUNNER_TEMP\desktop-webview.log"
           if ($LASTEXITCODE -ne 0) { throw "Companion WebView build failed; detailed output withheld." }
           Write-Output "Web build and companion WebView: PASS"
