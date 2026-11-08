@@ -215,7 +215,7 @@ jobs:
               echo "$label: PASS"
             else
               echo "::error::$label failed. Deno diagnostic summary:"
-              node -e 'const fs=require("node:fs"); const text=fs.readFileSync(process.env.RUNNER_TEMP+"/deno-check.log","utf8").replace(/\u001b\[[0-9;]*m/g,""); const lines=text.split(/\r?\n/).filter(line=>/TS[0-9]+|^error:|not assignable|Cannot find|not found|failed to resolve|Property .* does not exist/i.test(line)||line.includes("file://")).map(line=>line.replace(/file:\/\/[^ ]+/g,"<source>").slice(0,240)).slice(-60); console.log("SAFE_DENO_FAILURE_DIAG",JSON.stringify({lineCount:text.split(/\r?\n/).length,lines}));'
+              node -e 'const fs=require("node:fs"); const text=fs.readFileSync(process.env.RUNNER_TEMP+"/deno-check.log","utf8").replace(/\u001b\[[0-9;]*m/g,""); const locations=[...text.matchAll(/file:\/\/([^:\s]+):(\d+):(\d+)/g)].map(match=>({file:decodeURIComponent(match[1].split("/").pop()),line:Number(match[2]),column:Number(match[3])})).slice(-50); const lines=text.split(/\r?\n/).filter(line=>/TS[0-9]+|^error:|not assignable|Cannot find|not found|failed to resolve|Property .* does not exist/i.test(line)).map(line=>line.slice(0,240)).slice(-60); console.log("SAFE_DENO_FAILURE_DIAG",JSON.stringify({lineCount:text.split(/\r?\n/).length,lines,locations}));'
               exit 1
             fi
           }
