@@ -11,7 +11,7 @@ It covers five independent validation groups:
 1. Web build, registered Node test suites, Vitest, Deno helper/type checks, browser regression tests, and Ruby YAML parsing plus pinned actionlint over every private Rub Minds workflow.
 2. PostgreSQL 17 migration and SQL regression tests for the durable wake queue, provider identity, Android native settlement, and group-task coordination.
 3. Local-only provider-conversation probe regression tests (synthetic fixtures; no handset data), Android protocol tests, Gradle unit tests, merged-manifest audit, and a compile-only debug APK/signature check.
-4. A complete disposable local Supabase stack: full migration reset, real React human signup and invitation flows, invite revocation, Vault and bridge-state checks, official MCP SDK interoperability, two independent AI sessions, human↔AI group messaging, realtime, RLS isolation, and Backroom device pairing/authorization.
+4. A complete disposable local Supabase stack: full migration reset, the host-independent device-frame binding SQL contract/lifecycle test, real React human signup and invitation flows, invite revocation, Vault and bridge-state checks, official MCP SDK interoperability, two independent AI sessions, exact-session device-frame bind/replay/wrong-session/Leave-revocation checks, human↔AI group messaging, realtime, RLS isolation, and Backroom device pairing/authorization.
 5. Windows web/companion build, Rust tests, protocol tests, and Windows executable link/fingerprint check.
 
 The workflow does not connect to production Supabase: all Supabase integration tests run against a disposable local stack on the temporary runner. It does not deploy or upload APK/EXE artifacts. It intentionally suppresses raw command output because the runner's logs are visible from the public RUTONOMOUS repository. It reports pass/fail for each test group and prints only non-sensitive build fingerprints. If a command fails, detailed diagnostics must be reproduced locally in the private checkout.
@@ -38,7 +38,7 @@ The token is passed only to the checkout action. It is not exported to build or 
 1. Open [RUTONOMOUS Actions](https://github.com/abdulrazaqafolarin-droid/RUTONOMOUS/actions).
 2. Select **Private Rub Minds validation on free runners**.
 3. Choose **Run workflow** on the main branch.
-4. Keep the source ref as feat/native-provider-digest-queue for the current native provider/queue regression branch, or enter another existing Rub Minds branch.
+4. Keep the source ref as feat/device-frame-ai-runtime-contract to validate the current phone/desktop/terminal AI-frame binding work, or enter another existing Rub Minds branch.
 5. Start the workflow and inspect the five job summaries.
 
 Standard GitHub-hosted runners are free for public repositories. This workflow is deliberately manual-only so it does not run private-source tests for outside pull requests. See [GitHub Actions billing](https://docs.github.com/en/actions/concepts/billing-and-usage).

@@ -7,7 +7,7 @@ on:
         description: Existing private Rub Minds branch to validate (branch names only)
         required: true
         type: string
-        default: feat/native-provider-digest-queue
+        default: feat/device-frame-ai-runtime-contract
 
 permissions:
   contents: read
@@ -606,6 +606,19 @@ jobs:
           }
           test -f supabase/config.toml
           echo "Complete local migration reset and history: PASS"
+
+      - name: Run host-independent device-frame binding SQL contract and lifecycle tests
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          : "${DB_URL:?Local Supabase database URL missing}"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/device_frame_bindings.sql > "$RUNNER_TEMP/device-frame-binding-sql.log" 2>&1 || {
+            echo "::error::Device-frame schema, authorization, exact-session, replay, lease-renewal or lifecycle SQL tests failed; output is withheld."
+            exit 1
+          }
+          echo "Host-independent device-frame binding SQL tests: PASS"
 
       - name: Test real React signup, invite preservation and revoked-invite rejection
         working-directory: private-rub-minds
