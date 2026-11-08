@@ -680,22 +680,6 @@ jobs:
           echo "::error::Local MCP Edge Function did not become ready within the readiness window."
           exit 1
 
-      - name: Exercise official MCP SDK, two-AI collaboration, realtime, bridge-state and RLS
-        working-directory: private-rub-minds
-        shell: bash
-        run: |
-          set -euo pipefail
-          eval "$(supabase status -o env)"
-          export LOCAL_SUPABASE_URL="${API_URL:-http://127.0.0.1:54321}"
-          export LOCAL_SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:?Local service-role key missing}"
-          export LOCAL_SUPABASE_ANON_KEY="${ANON_KEY:?Local anon key missing}"
-          export LOCAL_MCP_ENDPOINT="http://127.0.0.1:54321/functions/v1/rub-minds-mcp"
-          node scripts/local-mcp-sdk-e2e.mjs > "$RUNNER_TEMP/local-mcp-sdk-e2e.log" 2>&1 || {
-            echo "::error::Official MCP SDK interoperability/collaboration E2E failed; detailed room/session output is withheld."
-            exit 1
-          }
-          echo "Official MCP SDK, independent AI sessions, group messaging, bridge-state and RLS E2E: PASS"
-
       - name: Start local Backroom device Edge Function
         working-directory: private-rub-minds
         shell: bash
@@ -727,6 +711,22 @@ jobs:
           done
           echo "::error::Local Backroom device Edge Function did not become ready within the readiness window."
           exit 1
+
+      - name: Exercise official MCP SDK, two-AI collaboration, realtime, bridge-state and RLS
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export LOCAL_SUPABASE_URL="${API_URL:-http://127.0.0.1:54321}"
+          export LOCAL_SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:?Local service-role key missing}"
+          export LOCAL_SUPABASE_ANON_KEY="${ANON_KEY:?Local anon key missing}"
+          export LOCAL_MCP_ENDPOINT="http://127.0.0.1:54321/functions/v1/rub-minds-mcp"
+          node scripts/local-mcp-sdk-e2e.mjs > "$RUNNER_TEMP/local-mcp-sdk-e2e.log" 2>&1 || {
+            echo "::error::Official MCP SDK interoperability/collaboration E2E failed; detailed room/session output is withheld."
+            exit 1
+          }
+          echo "Official MCP SDK, independent AI sessions, group messaging, bridge-state and RLS E2E: PASS"
 
       - name: Test Backroom device pairing, ownership, inventory and revocation
         working-directory: private-rub-minds
