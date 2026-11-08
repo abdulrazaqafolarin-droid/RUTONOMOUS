@@ -1,3 +1,4 @@
+# Owner-only private-source validation; public RUTONOMOUS contains no private source.
 name: Private Rub Minds validation on free runners
 
 on:
