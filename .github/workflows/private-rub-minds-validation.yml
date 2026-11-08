@@ -51,6 +51,17 @@ jobs:
             exit 2
           fi
 
+          token_status="$(curl --silent --show-error --output "$RUNNER_TEMP/private-token-user.json" \
+            --write-out '%{http_code}' \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $RUB_MINDS_READ_TOKEN" \
+            --header "X-GitHub-Api-Version: 2026-03-10" \
+            https://api.github.com/user)"
+          if [ "$token_status" != "200" ]; then
+            echo "::error::The saved token is not accepted by GitHub (HTTP $token_status). Replace RUB_MINDS_READ_TOKEN with a valid fine-grained token."
+            exit 2
+          fi
+
           repo_status="$(curl --silent --show-error --output "$RUNNER_TEMP/private-repo.json" \
             --write-out '%{http_code}' \
             --header "Accept: application/vnd.github+json" \
