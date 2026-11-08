@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: Current private Rub Minds branch to validate (branch names only; latest feature tip is tested)
+        description: Current private Rub Minds branch to validate (branch names only; latest feature tip and safe MCP progress checks are tested)
         required: false
         type: string
         default: feat/device-frame-ai-runtime-contract
