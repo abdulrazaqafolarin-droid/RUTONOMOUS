@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: Existing private Rub Minds branch to validate (branch names only)
+        description: Current private Rub Minds branch to validate (branch names only; checked out fresh each run)
         required: false
         type: string
         default: feat/device-frame-ai-runtime-contract
