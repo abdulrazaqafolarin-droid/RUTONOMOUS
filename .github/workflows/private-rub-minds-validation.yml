@@ -787,7 +787,7 @@ jobs:
           export LOCAL_MCP_ENDPOINT="http://127.0.0.1:54321/functions/v1/rub-minds-mcp"
           node scripts/local-mcp-sdk-e2e.mjs > "$RUNNER_TEMP/local-mcp-sdk-e2e.log" 2>&1 || {
             echo "Safe MCP E2E progress markers:"
-            grep '^SAFE_MCP_E2E_STAGE:' "$RUNNER_TEMP/local-mcp-sdk-e2e.log" | tail -n 5 || true
+            grep -E '^SAFE_MCP_E2E_STAGE:|^SAFE_MCP_E2E_SECOND_RUNTIME_INSERT_FAILURE ' "$RUNNER_TEMP/local-mcp-sdk-e2e.log" | tail -n 8 || true
             echo "::error::Official MCP SDK interoperability/collaboration E2E failed; detailed room/session output is withheld."
             exit 1
           }
