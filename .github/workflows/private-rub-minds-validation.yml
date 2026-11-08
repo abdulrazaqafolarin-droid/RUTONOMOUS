@@ -203,6 +203,8 @@ jobs:
 
       - name: Install Chromium for controlled browser suites
         working-directory: private-rub-minds
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: '0'
         shell: bash
         run: |
           npx playwright install --with-deps chromium > "$RUNNER_TEMP/playwright-install.log" 2>&1 || {
@@ -213,6 +215,8 @@ jobs:
 
       - name: Run original-session browser proof and Backroom browser regressions
         working-directory: private-rub-minds
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: '0'
         shell: bash
         run: |
           npm run test:browser > "$RUNNER_TEMP/browser-poc.log" 2>&1 || {
@@ -602,19 +606,33 @@ jobs:
           }
           echo "Locked dependencies: PASS"
 
-      - name: Install Chromium and official MCP SDK client
+      - name: Install official MCP SDK client and locked Playwright browser
         working-directory: private-rub-minds
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: '0'
         shell: bash
         run: |
-          npx playwright install --with-deps chromium > "$RUNNER_TEMP/local-e2e-playwright-install.log" 2>&1 || {
-            echo "::error::Chromium installation failed; detailed output is withheld."
-            exit 1
-          }
           npm install --no-save --package-lock=false @modelcontextprotocol/client@2.3.1 > "$RUNNER_TEMP/local-e2e-mcp-sdk-install.log" 2>&1 || {
             echo "::error::Official MCP SDK installation failed; detailed output is withheld."
             exit 1
           }
-          echo "Browser and official MCP SDK dependencies: PASS"
+          npx playwright install --with-deps chromium > "$RUNNER_TEMP/local-e2e-playwright-install.log" 2>&1 || {
+            echo "::error::Chromium installation failed; detailed output is withheld."
+            exit 1
+          }
+          node --input-type=module <<'NODE'
+          import { access } from "node:fs/promises";
+          import { chromium } from "playwright";
+          const executable = chromium.executablePath();
+          try {
+            await access(executable);
+          } catch {
+            console.error("::error::Playwright's resolved Chromium executable is missing after installation.");
+            process.exit(1);
+          }
+          console.log("Playwright Chromium executable: PASS");
+          NODE
+          echo "Official MCP SDK and Playwright browser dependencies: PASS"
 
       - name: Install PostgreSQL client
         shell: bash
@@ -672,6 +690,8 @@ jobs:
 
       - name: Test real React signup, invite preservation and revoked-invite rejection
         working-directory: private-rub-minds
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: '0'
         shell: bash
         run: |
           set -euo pipefail
