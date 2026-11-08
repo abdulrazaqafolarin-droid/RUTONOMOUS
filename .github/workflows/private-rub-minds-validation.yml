@@ -159,7 +159,7 @@ jobs:
         run: |
           npm run build > "$RUNNER_TEMP/private-build.log" 2>&1 || {
             echo "Safe diagnostic: failing TAP test titles only (no stack traces or test data):"
-            grep -E '^[[:space:]]*(not ok [0-9]+ - |SAFE_BINDING_REVOKE_DIAG|SAFE_CLOUD_DEVICE_CI_DIAG|SAFE_MCP_STDIO_TIMEOUT_DIAG|SAFE_MCP_STDIO_CAPACITY_DIAG|(error|code|failureType):|error TS[0-9]+:|[A-Za-z]+Error:|Cannot find module |Could not resolve )' "$RUNNER_TEMP/private-build.log" | tail -n 140 || true
+            grep -E '^[[:space:]]*(not ok [0-9]+ - |SAFE_BINDING_REVOKE_DIAG|SAFE_CLOUD_DEVICE_CI_DIAG|SAFE_MCP_STDIO_TIMEOUT_DIAG|SAFE_MCP_STDIO_CAPACITY_DIAG|SAFE_SDK_TASK_LIFECYCLE_CONTRACT|(error|code|failureType):|error TS[0-9]+:|[A-Za-z]+Error:|Cannot find module |Could not resolve )' "$RUNNER_TEMP/private-build.log" | tail -n 140 || true
             echo "::error::Web build or a registered prebuild test suite failed."
             exit 1
           }
@@ -844,7 +844,7 @@ jobs:
           npm run build *> "$env:RUNNER_TEMP\web-build.log"
           if ($LASTEXITCODE -ne 0) {
             Write-Output "Safe diagnostic: failing TAP test titles only (no stack traces or test data):"
-            Select-String -Path "$env:RUNNER_TEMP\web-build.log" -Pattern '^\s*(not ok [0-9]+ - |SAFE_BINDING_REVOKE_DIAG|SAFE_CLOUD_DEVICE_CI_DIAG|SAFE_MCP_STDIO_TIMEOUT_DIAG|SAFE_MCP_STDIO_CAPACITY_DIAG|(error|code|failureType):)' | Select-Object -Last 140 | ForEach-Object { $_.Line }
+            Select-String -Path "$env:RUNNER_TEMP\web-build.log" -Pattern '^\s*(not ok [0-9]+ - |SAFE_BINDING_REVOKE_DIAG|SAFE_CLOUD_DEVICE_CI_DIAG|SAFE_MCP_STDIO_TIMEOUT_DIAG|SAFE_MCP_STDIO_CAPACITY_DIAG|SAFE_SDK_TASK_LIFECYCLE_CONTRACT|(error|code|failureType):)' | Select-Object -Last 140 | ForEach-Object { $_.Line }
             throw "Web build and registered prebuild tests failed."
           }
           npm run build:desktop-companion *> "$env:RUNNER_TEMP\desktop-webview.log"
