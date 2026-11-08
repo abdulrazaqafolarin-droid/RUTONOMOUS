@@ -39,16 +39,42 @@ jobs:
           fi
           echo "Private source ref format: PASS"
 
-      - name: Confirm the private read-only token is configured
+      - name: Verify read-only access to the exact private source branch
         env:
           RUB_MINDS_READ_TOKEN: ${{ secrets.RUB_MINDS_READ_TOKEN }}
+          SOURCE_REF: ${{ inputs.source_ref || 'feat/device-frame-ai-runtime-contract' }}
         shell: bash
         run: |
+          set -euo pipefail
           if [ -z "$RUB_MINDS_READ_TOKEN" ]; then
-            echo "::error::Add the RUB_MINDS_READ_TOKEN repository secret. See docs/PRIVATE_RUB_MINDS_CI.md."
+            echo "::error::RUB_MINDS_READ_TOKEN is missing."
             exit 2
           fi
-          echo "Private read token: CONFIGURED (value not displayed)"
+
+          repo_status="$(curl --silent --show-error --output "$RUNNER_TEMP/private-repo.json" \
+            --write-out '%{http_code}' \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $RUB_MINDS_READ_TOKEN" \
+            --header "X-GitHub-Api-Version: 2026-03-10" \
+            https://api.github.com/repos/abdulrazaqafolarin-droid/Rub-minds)"
+          if [ "$repo_status" != "200" ] || ! jq -e '.private == true' "$RUNNER_TEMP/private-repo.json" >/dev/null; then
+            echo "::error::Private repository read check failed (HTTP $repo_status). Confirm the token is valid, approved if required, and restricted to Rub-minds with Contents: Read-only."
+            exit 2
+          fi
+
+          branch_status="$(curl --silent --show-error --output "$RUNNER_TEMP/private-branch.json" \
+            --write-out '%{http_code}' \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $RUB_MINDS_READ_TOKEN" \
+            --header "X-GitHub-Api-Version: 2026-03-10" \
+            "https://api.github.com/repos/abdulrazaqafolarin-droid/Rub-minds/branches/$SOURCE_REF")"
+          if [ "$branch_status" != "200" ] || ! jq -e --arg ref "$SOURCE_REF" '.name == $ref and (.commit.sha | type == "string")' "$RUNNER_TEMP/private-branch.json" >/dev/null; then
+            echo "::error::Private branch read check failed (HTTP $branch_status). Confirm the selected branch exists and the token can read it."
+            exit 2
+          fi
+
+          echo "Private repository and selected branch: READ-ONLY ACCESS VERIFIED"
+          echo "Selected branch commit: $(jq -r '.commit.sha' "$RUNNER_TEMP/private-branch.json")"
 
   web-and-edge:
     name: Web, Node, Deno and browser tests
