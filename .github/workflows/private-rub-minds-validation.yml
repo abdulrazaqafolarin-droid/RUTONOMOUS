@@ -14,6 +14,7 @@ on:
         required: false
         type: string
         default: feat/device-frame-ai-runtime-contract
+        # The private branch is resolved when this validation job checks out source_ref.
 
 permissions:
   contents: read
