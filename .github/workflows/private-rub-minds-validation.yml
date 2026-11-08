@@ -166,6 +166,9 @@ jobs:
           const lines = log.split(/\\r?\\n/);
           const tapFailures = lines.filter(line => /^\\s*not ok [0-9]+ - /.test(line)).length;
           const tsCodes = [...new Set([...log.matchAll(/error (TS[0-9]+):/g)].map(match => match[1]))].slice(0, 12);
+          const tsLocations = [...log.matchAll(/([A-Za-z0-9_./-]+\\.(?:ts|tsx|mts|cts))\\((\\d+),(\\d+)\\):\\s*error\\s+(TS[0-9]+):/g)]
+            .slice(0, 40)
+            .map(match => ({ file: match[1].split(/[\\\\/]/).pop(), line: Number(match[2]), column: Number(match[3]), code: match[4] }));
           console.log("SAFE_BUILD_FAILURE_DIAG", JSON.stringify({
             lineCount: lines.length,
             tapFailureCount: tapFailures,
@@ -174,6 +177,7 @@ jobs:
             hasOutOfMemory: /heap out of memory|Allocation failed - JavaScript heap|SIGKILL/.test(log),
             hasViteBuildError: /\\[vite\\].*error|Rollup failed|Build failed/.test(log),
             typescriptErrorCodes: tsCodes,
+            typescriptErrorLocations: tsLocations,
             hasTestLifecycleDiagnostic: /SAFE_SDK_TASK_LIFECYCLE_CONTRACT/.test(log)
           }));
           NODE
