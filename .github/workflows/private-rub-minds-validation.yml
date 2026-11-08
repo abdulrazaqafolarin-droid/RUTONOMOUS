@@ -370,6 +370,7 @@ jobs:
             20261102221500_backroom_wake_grant_24h_auto_consent.sql
             20261102223000_revoke_backroom_wake_on_mcp_leave.sql
             20261104111500_backroom_provider_conversation_identity_queue.sql
+            20261105090000_mcp_session_agent_credential_digest.sql
             20261105110000_backroom_android_native_wake_queue_settlement.sql
             20261106143000_backroom_android_native_binding_attestation.sql
             20261107090000_backroom_android_native_wake_forwarder.sql

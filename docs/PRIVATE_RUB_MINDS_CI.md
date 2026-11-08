@@ -4,7 +4,7 @@ RUTONOMOUS remains a public, sanitised test harness. The workflow in this reposi
 
 ## What the private validation workflow does
 
-The workflow is manual-only. It runs only when dispatched from RUTONOMOUS main by the repository owner, and it checks out the selected private Rub Minds branch onto temporary GitHub-hosted runners. A shared preflight validates the selected ref and confirms that the read-only token exists before any test job starts.
+The workflow supports manual runs from RUTONOMOUS `main` and a narrowly scoped automatic run when this validator workflow file itself changes on `main`. It does not run on pull requests or general pushes. Both paths are restricted to the repository owner, and it checks out the selected private Rub Minds branch onto temporary GitHub-hosted runners. A shared preflight validates the selected ref and confirms that the read-only token exists before any test job starts.
 
 It covers five independent validation groups:
 
@@ -18,7 +18,7 @@ The workflow does not connect to production Supabase: all Supabase integration t
 
 ## One-time access setup
 
-The workflow needs a narrowly scoped fine-grained personal access token so the public RUTONOMOUS workflow can read the private Rub Minds repository.
+The workflow needs a narrowly scoped fine-grained personal access token so the public RUTONOMOUS workflow can read the private Rub Minds repository. The first guarded run on 8 November 2026 confirmed that `RUB_MINDS_READ_TOKEN` is not yet configured; all private-source test jobs were skipped at preflight.
 
 1. Open [GitHub fine-grained personal access tokens](https://github.com/settings/personal-access-tokens/new).
 2. Choose your account as the resource owner.
@@ -41,7 +41,7 @@ The token is passed only to the checkout action. It is not exported to build or 
 4. Keep the source ref as feat/device-frame-ai-runtime-contract to validate the current phone/desktop/terminal AI-frame binding work, or enter another existing Rub Minds branch.
 5. Start the workflow and inspect the five job summaries.
 
-Standard GitHub-hosted runners are free for public repositories. This workflow is deliberately manual-only so it does not run private-source tests for outside pull requests. See [GitHub Actions billing](https://docs.github.com/en/actions/concepts/billing-and-usage).
+Standard GitHub-hosted runners are free for public repositories. The automatic trigger is path-scoped to this workflow file on `main`; there is no pull-request trigger, and the preflight stops before checkout if the private read-only secret is missing. See [GitHub Actions billing](https://docs.github.com/en/actions/concepts/billing-and-usage).
 
 ## Security and evidence limits
 

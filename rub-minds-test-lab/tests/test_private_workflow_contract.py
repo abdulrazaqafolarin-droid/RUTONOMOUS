@@ -21,9 +21,17 @@ class PrivateWorkflowContractTests(unittest.TestCase):
         self.assertIsNotNone(match, f"missing workflow job: {name}")
         return match.group(1)
 
-    def test_only_manual_dispatch_can_start_private_source_jobs(self) -> None:
+    def test_private_source_runs_only_on_owner_dispatch_or_scoped_workflow_update(self) -> None:
         self.assertIn("workflow_dispatch:", self.workflow)
-        self.assertNotRegex(self.workflow, r"(?m)^\s{2}(push|pull_request):")
+        self.assertRegex(
+            self.workflow,
+            r"(?ms)^  push:\n    branches: \[main\]\n    paths:\n      - \.github/workflows/private-rub-minds-validation\.yml$",
+        )
+        self.assertNotRegex(self.workflow, r"(?m)^\s{2}pull_request:")
+        self.assertIn("required: false", self.workflow)
+        self.assertGreaterEqual(
+            self.workflow.count("inputs.source_ref || 'feat/device-frame-ai-runtime-contract'"), 6,
+        )
         self.assertIn("github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS'", self.workflow)
         self.assertIn("github.ref == 'refs/heads/main'", self.workflow)
         self.assertIn("github.actor == 'abdulrazaqafolarin-droid'", self.workflow)
@@ -75,6 +83,7 @@ class PrivateWorkflowContractTests(unittest.TestCase):
             "20261102221500_backroom_wake_grant_24h_auto_consent.sql",
             "20261102223000_revoke_backroom_wake_on_mcp_leave.sql",
             "20261104111500_backroom_provider_conversation_identity_queue.sql",
+            "20261105090000_mcp_session_agent_credential_digest.sql",
             "20261105110000_backroom_android_native_wake_queue_settlement.sql",
             "20261106143000_backroom_android_native_binding_attestation.sql",
             "20261107090000_backroom_android_native_wake_forwarder.sql",
@@ -129,6 +138,21 @@ class PrivateWorkflowContractTests(unittest.TestCase):
         self.assertIn("LOCAL_SUPABASE_URL=", block)
         self.assertIn("http://127.0.0.1:54321", block)
         self.assertNotIn("SUPABASE_ACCESS_TOKEN", block)
+
+    def test_frame_binding_schema_and_real_sdk_scenario_are_wired_after_reset(self) -> None:
+        block = self._job("local-supabase-e2e")
+        sql_test = "supabase/tests/device_frame_bindings.sql"
+        sql_step = "Run host-independent device-frame binding SQL contract and lifecycle tests"
+        edge_step = "Start all local Supabase Edge Functions (MCP + Backroom device)"
+        sdk_step = "Exercise official MCP SDK, two-AI collaboration, realtime, bridge-state and RLS"
+        self.assertIn(sql_test, block)
+        self.assertIn(sql_step, block)
+        self.assertIn(edge_step, block)
+        self.assertIn(sdk_step, block)
+        self.assertLess(block.index("supabase db reset --local"), block.index(sql_step))
+        self.assertLess(block.index(sql_step), block.index(edge_step))
+        self.assertLess(block.index(edge_step), block.index(sdk_step))
+        self.assertIn("scripts/local-mcp-sdk-e2e.mjs", block)
 
     def test_workflow_never_publishes_private_binaries_or_deploys(self) -> None:
         self.assertNotIn("actions/upload-artifact", self.workflow)
