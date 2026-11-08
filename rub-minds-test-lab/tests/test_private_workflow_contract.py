@@ -44,7 +44,7 @@ class PrivateWorkflowContractTests(unittest.TestCase):
             "local-supabase-e2e",
             "windows-companion",
         ]
-        self.assertEqual(self.workflow.count("- name: Confirm the private read-only token is configured"), 1)
+        self.assertEqual(self.workflow.count("- name: Verify read-only access to the exact private source branch"), 1)
         self.assertEqual(self.workflow.count("- name: Validate selected private source ref"), 1)
         for job in jobs:
             block = self._job(job)
