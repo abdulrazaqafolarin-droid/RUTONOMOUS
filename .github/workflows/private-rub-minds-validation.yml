@@ -215,7 +215,7 @@ jobs:
               echo "$label: PASS"
             else
               echo "::error::$label failed. Deno diagnostic summary:"
-              grep '^error:' "$RUNNER_TEMP/deno-check.log" | cut -c1-200 | head -n 20 || true
+              node -e 'const fs=require("node:fs"); const text=fs.readFileSync(process.env.RUNNER_TEMP+"/deno-check.log","utf8").replace(/\u001b\[[0-9;]*m/g,""); const lines=text.split(/\r?\n/).filter(line=>/TS[0-9]+|^error:|not assignable|Cannot find|not found|failed to resolve|Property .* does not exist/i.test(line)).map(line=>line.replace(/file:\/\/[^ ]+/g,"<source>").slice(0,240)).slice(-30); console.log("SAFE_DENO_FAILURE_DIAG",JSON.stringify({lineCount:text.split(/\r?\n/).length,lines}));'
               exit 1
             fi
           }
