@@ -1,3 +1,4 @@
+# Validate latest Deno type fixes and Android settlement-result propagation from PR 69.
 # Recheck the latest private Rub Minds device-frame E2E and cross-platform regression fixes.
 # Current source branch validation requested after the Backroom binding-route fix.
 # Simulator TypeScript compile fixes validated against the current private branch.
