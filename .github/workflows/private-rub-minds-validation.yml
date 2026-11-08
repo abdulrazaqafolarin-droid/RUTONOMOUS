@@ -157,7 +157,7 @@ jobs:
         run: |
           npm run build > "$RUNNER_TEMP/private-build.log" 2>&1 || {
             echo "Safe diagnostic: failing TAP test titles only (no stack traces or test data):"
-            grep -E '^not ok [0-9]+ - ' "$RUNNER_TEMP/private-build.log" | tail -n 30 || true
+            grep -E '^not ok [0-9]+ - |SAFE_BINDING_REVOKE_DIAG' "$RUNNER_TEMP/private-build.log" | tail -n 60 || true
             echo "::error::Web build or a registered prebuild test suite failed."
             exit 1
           }
@@ -679,7 +679,7 @@ jobs:
           export LOCAL_SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:?Local service-role key missing}"
           node scripts/local-human-invite-e2e.mjs > "$RUNNER_TEMP/local-human-invite.log" 2>&1 || {
             echo "Safe diagnostic: last completed invite-E2E stage only:"
-            grep '^E2E_STAGE:' "$RUNNER_TEMP/local-human-invite.log" | tail -n 1 || true
+            grep -E '^E2E_STAGE:|^E2E_STARTUP_DIAG:' "$RUNNER_TEMP/local-human-invite.log" | tail -n 3 || true
             echo "::error::Real browser signup/invitation E2E failed; detailed local-auth output remains withheld."
             exit 1
           }
@@ -820,7 +820,7 @@ jobs:
           npm run build *> "$env:RUNNER_TEMP\web-build.log"
           if ($LASTEXITCODE -ne 0) {
             Write-Output "Safe diagnostic: failing TAP test titles only (no stack traces or test data):"
-            Select-String -Path "$env:RUNNER_TEMP\web-build.log" -Pattern '^not ok [0-9]+ - ' | Select-Object -Last 30 | ForEach-Object { $_.Line }
+            Select-String -Path "$env:RUNNER_TEMP\web-build.log" -Pattern '^not ok [0-9]+ - |SAFE_BINDING_REVOKE_DIAG' | Select-Object -Last 60 | ForEach-Object { $_.Line }
             throw "Web build and registered prebuild tests failed."
           }
           npm run build:desktop-companion *> "$env:RUNNER_TEMP\desktop-webview.log"
