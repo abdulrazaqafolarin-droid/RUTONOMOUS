@@ -139,6 +139,11 @@ class PrivateWorkflowContractTests(unittest.TestCase):
         self.assertIn("http://127.0.0.1:54321", block)
         self.assertNotIn("SUPABASE_ACCESS_TOKEN", block)
 
+    def test_local_supabase_cleanup_step_uses_disposable_services_label(self) -> None:
+        block = self._job("local-supabase-e2e")
+        self.assertIn("- name: Stop disposable Supabase services", block)
+        self.assertNotIn("- name: Stop isolated Supabase services", block)
+
     def test_frame_binding_schema_and_real_sdk_scenario_are_wired_after_reset(self) -> None:
         block = self._job("local-supabase-e2e")
         sql_test = "supabase/tests/device_frame_bindings.sql"
