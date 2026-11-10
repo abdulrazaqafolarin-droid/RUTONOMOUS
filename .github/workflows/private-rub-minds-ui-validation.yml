@@ -1,4 +1,4 @@
-name: Private Rub Minds production UI validation
+name: Private Rub Minds production UI and signed-in journey validation
 
 on:
   push:
