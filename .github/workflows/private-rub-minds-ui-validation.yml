@@ -162,14 +162,33 @@ jobs:
           fi
           echo "TypeScript project build: PASS"
 
-      - name: Vite production bundle
-        id: vite
+      - name: Install Chromium for browser acceptance
+        id: playwright
         continue-on-error: true
         working-directory: private-rub-minds
         shell: bash
         run: |
           set +e
-          npx vite build > "$RUNNER_TEMP/rm-vite.log" "$RUNNER_TEMP/rm-runtime-tests.log" "$RUNNER_TEMP/rm-backroom-tests.log" "$RUNNER_TEMP/rm-external-tests.log" 2>&1
+          npx playwright install --with-deps chromium > "$RUNNER_TEMP/rm-playwright-install.log" 2>&1
+          result=$?
+          set -e
+          if [ "$result" -ne 0 ]; then
+            echo "::error::Browser test runtime installation failed; private logs are withheld."
+            exit "$result"
+          fi
+          echo "Chromium browser test runtime: PASS"
+
+      - name: Vite production bundle
+        id: vite
+        continue-on-error: true
+        working-directory: private-rub-minds
+        env:
+          VITE_SUPABASE_URL: https://ui-test.supabase.co
+          VITE_SUPABASE_ANON_KEY: ui-test-anon-key-not-for-authentication
+        shell: bash
+        run: |
+          set +e
+          npx vite build > "$RUNNER_TEMP/rm-vite.log" 2>&1
           result=$?
           set -e
           if [ "$result" -ne 0 ]; then
@@ -177,6 +196,45 @@ jobs:
             exit "$result"
           fi
           echo "Vite production bundle: PASS"
+
+      - name: Run desktop and mobile browser acceptance
+        id: browser
+        if: always() && steps.vite.conclusion == 'success' && steps.playwright.conclusion == 'success'
+        continue-on-error: true
+        working-directory: private-rub-minds
+        env:
+          RM_BASE_URL: http://127.0.0.1:4173
+          RM_SCREENSHOT_DIR: ${{ runner.temp }}/rub-minds-ui-screenshots
+          VITE_SUPABASE_URL: https://ui-test.supabase.co
+          VITE_SUPABASE_ANON_KEY: ui-test-anon-key-not-for-authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run preview -- --host 127.0.0.1 --port 4173 --strictPort > "$RUNNER_TEMP/rm-preview.log" 2>&1 &
+          preview_pid=$!
+          echo "$preview_pid" > "$RUNNER_TEMP/rm-preview.pid"
+          ready=0
+          for attempt in $(seq 1 40); do
+            if curl --silent --fail http://127.0.0.1:4173/ >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "::error::Private UI preview server did not become ready."
+            exit 1
+          fi
+          set +e
+          node scripts/ui-redesign.browser-test.mjs > "$RUNNER_TEMP/rm-browser.log" 2>&1
+          result=$?
+          set -e
+          if [ "$result" -ne 0 ]; then
+            echo "::error::Desktop/mobile browser acceptance failed; private logs and screenshots are withheld."
+            exit "$result"
+          fi
+          echo "Desktop and mobile Playwright acceptance: PASS"
+
 
       - name: Summarize validation stages without exposing private output
         if: always()
@@ -186,6 +244,8 @@ jobs:
           EXTERNAL_RESULT: ${{ steps.external.conclusion }}
           TSC_RESULT: ${{ steps.tsc.conclusion }}
           VITE_RESULT: ${{ steps.vite.conclusion }}
+          PLAYWRIGHT_INSTALL_RESULT: ${{ steps.playwright.conclusion }}
+          BROWSER_RESULT: ${{ steps.browser.conclusion }}
         shell: bash
         run: |
           set -euo pipefail
@@ -194,8 +254,12 @@ jobs:
           echo "External workspace regressions: $EXTERNAL_RESULT"
           echo "TypeScript project build: $TSC_RESULT"
           echo "Vite production bundle: $VITE_RESULT"
+          echo "Chromium setup: $PLAYWRIGHT_INSTALL_RESULT"
+          echo "Desktop/mobile browser acceptance: $BROWSER_RESULT"
           if [ "$RUNTIME_RESULT" != "success" ] || [ "$BACKROOM_RESULT" != "success" ] || \
-             [ "$EXTERNAL_RESULT" != "success" ] || [ "$TSC_RESULT" != "success" ] || [ "$VITE_RESULT" != "success" ]; then
+             [ "$EXTERNAL_RESULT" != "success" ] || [ "$TSC_RESULT" != "success" ] || \
+             [ "$VITE_RESULT" != "success" ] || [ "$PLAYWRIGHT_INSTALL_RESULT" != "success" ] || \
+             [ "$BROWSER_RESULT" != "success" ]; then
             echo "::error::One or more private production-baseline validation stages failed."
             exit 1
           fi
@@ -206,5 +270,5 @@ jobs:
         shell: bash
         run: |
           rm -rf private-rub-minds
-          rm -f "$RUNNER_TEMP/rm-branch.json" "$RUNNER_TEMP/rm-npm-install.log" "$RUNNER_TEMP/rm-vitest.log" "$RUNNER_TEMP/rm-build.log" "$RUNNER_TEMP/rm-prebuild.log" "$RUNNER_TEMP/rm-tsc.log" "$RUNNER_TEMP/rm-vite.log" "$RUNNER_TEMP/rm-runtime-tests.log" "$RUNNER_TEMP/rm-backroom-tests.log" "$RUNNER_TEMP/rm-external-tests.log"
+          rm -f "$RUNNER_TEMP/rm-branch.json" "$RUNNER_TEMP/rm-npm-install.log" "$RUNNER_TEMP/rm-vitest.log" "$RUNNER_TEMP/rm-build.log" "$RUNNER_TEMP/rm-prebuild.log" "$RUNNER_TEMP/rm-tsc.log" "$RUNNER_TEMP/rm-vite.log" "$RUNNER_TEMP/rm-runtime-tests.log" "$RUNNER_TEMP/rm-backroom-tests.log" "$RUNNER_TEMP/rm-external-tests.log" "$RUNNER_TEMP/rm-playwright-install.log" "$RUNNER_TEMP/rm-preview.log" "$RUNNER_TEMP/rm-preview.pid" "$RUNNER_TEMP/rm-browser.log" && rm -rf "$RUNNER_TEMP/rub-minds-ui-screenshots"
           echo "Disposable private-source checkout and logs removed."
