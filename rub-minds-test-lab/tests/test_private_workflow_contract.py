@@ -30,7 +30,7 @@ class PrivateWorkflowContractTests(unittest.TestCase):
         self.assertNotRegex(self.workflow, r"(?m)^\s{2}pull_request:")
         self.assertIn("required: false", self.workflow)
         self.assertGreaterEqual(
-            self.workflow.count("inputs.source_ref || 'feat/device-frame-ai-runtime-contract'"), 6,
+            self.workflow.count("inputs.source_ref || 'feat/rub-minds-uiux-production'"), 6,
         )
         self.assertIn("github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS'", self.workflow)
         self.assertIn("github.ref == 'refs/heads/main'", self.workflow)
