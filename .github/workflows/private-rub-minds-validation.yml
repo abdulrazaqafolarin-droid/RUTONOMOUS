@@ -1,4 +1,4 @@
-# Revalidate PR #69 after fixing the Windows CRLF regression assertion.\n# Validate latest Deno type fixes and Android settlement-result propagation from PR 69.
+# Validate the complete Rub Minds UI/UX redesign against the latest private feature branch.\n# Validate latest Deno type fixes and Android settlement-result propagation from PR 69.
 # Recheck the latest private Rub Minds device-frame E2E and cross-platform regression fixes.
 # Current source branch validation requested after the Backroom binding-route fix.
 # Simulator TypeScript compile fixes validated against the current private branch.
@@ -16,7 +16,7 @@ on:
         description: Current private Rub Minds branch to validate (branch names only; latest feature tip and safe MCP progress checks are tested)
         required: false
         type: string
-        default: feat/device-frame-ai-runtime-contract
+        default: feat/rub-minds-uiux-redesign
         # The private branch is resolved when this validation job checks out source_ref; logs expose only safe error codes.
 
 permissions:
