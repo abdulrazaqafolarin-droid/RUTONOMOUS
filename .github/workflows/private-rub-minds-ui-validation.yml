@@ -1,4 +1,4 @@
-name: Private Rub Minds verified visual artifact acceptance
+name: Private Rub Minds visual files and runtime outcome verification
 
 on:
   push:
@@ -233,6 +233,7 @@ jobs:
           result=$?
           set -e
           if [ "$result" -ne 0 ]; then
+            grep -E 'Missing regular visual-review|Screenshot paths are not regular|Screenshot is empty|Missing visual-review|AssertionError:' "$RUNNER_TEMP/rm-browser.log" | tail -8 | cut -c1-220 || true
             echo "::error::Desktop/mobile browser acceptance failed; private logs and screenshots are withheld."
             exit "$result"
           fi
@@ -275,11 +276,13 @@ jobs:
         run: |
           set -euo pipefail
           screenshot_dir="$RUNNER_TEMP/rub-minds-ui-screenshots"
-          mapfile -t screenshots < <(find "$screenshot_dir" -maxdepth 1 -type f -name '*.png' -printf '%f\\n' | sort)
-          printf 'Visual-review files (%s):\\n' "${#screenshots[@]}"
-          printf ' - %s\\n' "${screenshots[@]}"
+          mapfile -d '' -t screenshots < <(find "$screenshot_dir" -maxdepth 1 -type f -name '*.png' -print0 | sort -z)
+          printf 'Regular visual-review PNG files (%s):\n' "${#screenshots[@]}"
+          for file in "${screenshots[@]}"; do printf ' - %s\n' "${file##*/}"; done
+          echo "Screenshot directory entries (type and name):"
+          find "$screenshot_dir" -maxdepth 2 -printf '%y %P\n' | sort
           if [ "${#screenshots[@]}" -ne 9 ]; then
-            echo "::error::Expected nine visual-review screenshots; found ${#screenshots[@]}."
+            echo "::error::Expected nine regular visual-review PNG files; found ${#screenshots[@]}."
             exit 1
           fi
           tar -czf "$RUNNER_TEMP/rub-minds-ui-screenshots.tar.gz" -C "$RUNNER_TEMP" rub-minds-ui-screenshots
