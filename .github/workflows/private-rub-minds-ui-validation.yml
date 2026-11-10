@@ -99,6 +99,8 @@ jobs:
           echo "Private Vitest suite: PASS"
 
       - name: Runtime regression suite
+        id: runtime
+        continue-on-error: true
         working-directory: private-rub-minds
         shell: bash
         run: |
@@ -113,6 +115,8 @@ jobs:
           echo "Runtime regression suite: PASS"
 
       - name: Backroom regression suite
+        id: backroom
+        continue-on-error: true
         working-directory: private-rub-minds
         shell: bash
         run: |
@@ -127,6 +131,8 @@ jobs:
           echo "Backroom regression suite: PASS"
 
       - name: External workspace regression suite
+        id: external
+        continue-on-error: true
         working-directory: private-rub-minds
         shell: bash
         run: |
@@ -141,6 +147,8 @@ jobs:
           echo "External workspace regression suite: PASS"
 
       - name: TypeScript project build
+        id: tsc
+        continue-on-error: true
         working-directory: private-rub-minds
         shell: bash
         run: |
@@ -155,6 +163,8 @@ jobs:
           echo "TypeScript project build: PASS"
 
       - name: Vite production bundle
+        id: vite
+        continue-on-error: true
         working-directory: private-rub-minds
         shell: bash
         run: |
@@ -168,10 +178,33 @@ jobs:
           fi
           echo "Vite production bundle: PASS"
 
+      - name: Summarize validation stages without exposing private output
+        if: always()
+        env:
+          RUNTIME_RESULT: ${{ steps.runtime.outcome }}
+          BACKROOM_RESULT: ${{ steps.backroom.outcome }}
+          EXTERNAL_RESULT: ${{ steps.external.outcome }}
+          TSC_RESULT: ${{ steps.tsc.outcome }}
+          VITE_RESULT: ${{ steps.vite.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Runtime regressions: $RUNTIME_RESULT"
+          echo "Backroom regressions: $BACKROOM_RESULT"
+          echo "External workspace regressions: $EXTERNAL_RESULT"
+          echo "TypeScript project build: $TSC_RESULT"
+          echo "Vite production bundle: $VITE_RESULT"
+          if [ "$RUNTIME_RESULT" != "success" ] || [ "$BACKROOM_RESULT" != "success" ] || \
+             [ "$EXTERNAL_RESULT" != "success" ] || [ "$TSC_RESULT" != "success" ] || [ "$VITE_RESULT" != "success" ]; then
+            echo "::error::One or more private production-baseline validation stages failed."
+            exit 1
+          fi
+          echo "Private production UI validation: PASS"
+
       - name: Remove private source and temporary logs
         if: always()
         shell: bash
         run: |
           rm -rf private-rub-minds
-          rm -f "$RUNNER_TEMP/rm-branch.json" "$RUNNER_TEMP/rm-npm-install.log" "$RUNNER_TEMP/rm-vitest.log" "$RUNNER_TEMP/rm-build.log" "$RUNNER_TEMP/rm-prebuild.log" "$RUNNER_TEMP/rm-tsc.log" "$RUNNER_TEMP/rm-vite.log"
+          rm -f "$RUNNER_TEMP/rm-branch.json" "$RUNNER_TEMP/rm-npm-install.log" "$RUNNER_TEMP/rm-vitest.log" "$RUNNER_TEMP/rm-build.log" "$RUNNER_TEMP/rm-prebuild.log" "$RUNNER_TEMP/rm-tsc.log" "$RUNNER_TEMP/rm-vite.log" "$RUNNER_TEMP/rm-runtime-tests.log" "$RUNNER_TEMP/rm-backroom-tests.log" "$RUNNER_TEMP/rm-external-tests.log"
           echo "Disposable private-source checkout and logs removed."
