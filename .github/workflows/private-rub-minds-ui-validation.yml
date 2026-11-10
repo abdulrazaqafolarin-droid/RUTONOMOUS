@@ -1,4 +1,4 @@
-name: Private Rub Minds production typecheck and browser revalidation
+name: Private Rub Minds detailed failure isolation
 
 on:
   push:
@@ -113,7 +113,8 @@ jobs:
           set -e
           if [ "$result" -ne 0 ]; then
             echo "::group::Failing runtime test identifiers"
-            grep -E '^(TAP version|not ok |# (tests|pass|fail|cancelled|skipped)|Error:|TypeError:|ReferenceError:|SyntaxError:|AssertionError|[[:space:]]+error:|[[:space:]]+code:|Cannot find module|ERR_MODULE_NOT_FOUND)' "$RUNNER_TEMP/rm-runtime-tests.log" | head -35 | cut -c1-220 || true
+            echo "Exit status: $result; diagnostic log bytes: $(wc -c < "$RUNNER_TEMP/rm-runtime-tests.log")"
+            grep -iE 'failed|error|exception|timeout|not ok|module not found|not found|terminated|killed' "$RUNNER_TEMP/rm-runtime-tests.log" | head -20 | cut -c1-220 || true
             echo "::endgroup::"
             echo "::error::Runtime regression suite failed; detailed logs remain private."
             exit "$result"
@@ -132,7 +133,8 @@ jobs:
           set -e
           if [ "$result" -ne 0 ]; then
             echo "::group::Failing Backroom test identifiers"
-            grep -E '^(TAP version|not ok |# (tests|pass|fail|cancelled|skipped)|Error:|TypeError:|ReferenceError:|SyntaxError:|AssertionError|[[:space:]]+error:|[[:space:]]+code:|Cannot find module|ERR_MODULE_NOT_FOUND)' "$RUNNER_TEMP/rm-backroom-tests.log" | head -35 | cut -c1-220 || true
+            echo "Exit status: $result; diagnostic log bytes: $(wc -c < "$RUNNER_TEMP/rm-backroom-tests.log")"
+            grep -iE 'failed|error|exception|timeout|not ok|module not found|not found|terminated|killed' "$RUNNER_TEMP/rm-backroom-tests.log" | head -20 | cut -c1-220 || true
             echo "::endgroup::"
             echo "::error::Backroom regression suite failed; detailed logs remain private."
             exit "$result"
@@ -151,7 +153,8 @@ jobs:
           set -e
           if [ "$result" -ne 0 ]; then
             echo "::group::Failing external-workspace test identifiers"
-            grep -E '^(TAP version|not ok |# (tests|pass|fail|cancelled|skipped)|Error:|TypeError:|ReferenceError:|SyntaxError:|AssertionError|[[:space:]]+error:|[[:space:]]+code:|Cannot find module|ERR_MODULE_NOT_FOUND)' "$RUNNER_TEMP/rm-external-tests.log" | head -35 | cut -c1-220 || true
+            echo "Exit status: $result; diagnostic log bytes: $(wc -c < "$RUNNER_TEMP/rm-external-tests.log")"
+            grep -iE 'failed|error|exception|timeout|not ok|module not found|not found|terminated|killed' "$RUNNER_TEMP/rm-external-tests.log" | head -20 | cut -c1-220 || true
             echo "::endgroup::"
             echo "::error::External workspace regression suite failed; detailed logs remain private."
             exit "$result"
@@ -246,7 +249,8 @@ jobs:
           set -e
           if [ "$result" -ne 0 ]; then
             echo "::group::Safe browser acceptance failure"
-            grep -E 'AssertionError|Error:|Missing regular visual-review|Screenshot paths are not regular|Screenshot is empty|Missing visual-review' "$RUNNER_TEMP/rm-browser.log" | head -8 | cut -c1-220 || true
+            echo "Exit status: $result; browser log bytes: $(wc -c < "$RUNNER_TEMP/rm-browser.log")"
+            grep -iE 'failed|error|exception|timeout|not regular|empty|missing|not found|browser|locator' "$RUNNER_TEMP/rm-browser.log" | head -20 | cut -c1-220 || true
             echo "::endgroup::"
             echo "::error::Desktop/mobile browser acceptance failed; full private logs are withheld."
             exit "$result"
