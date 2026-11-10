@@ -1,4 +1,4 @@
-name: Private Rub Minds visual files and runtime outcome verification
+name: Private Rub Minds production typecheck and browser revalidation
 
 on:
   push:
@@ -113,7 +113,7 @@ jobs:
           set -e
           if [ "$result" -ne 0 ]; then
             echo "::group::Failing runtime test identifiers"
-            grep -E '^(not ok |# tests |# pass |# fail |# cancelled |# skipped )' "$RUNNER_TEMP/rm-runtime-tests.log" | tail -30 | cut -c1-220 || true
+            grep -E '^(TAP version|not ok |# (tests|pass|fail|cancelled|skipped)|Error:|TypeError:|ReferenceError:|SyntaxError:|AssertionError|[[:space:]]+error:|[[:space:]]+code:|Cannot find module|ERR_MODULE_NOT_FOUND)' "$RUNNER_TEMP/rm-runtime-tests.log" | head -35 | cut -c1-220 || true
             echo "::endgroup::"
             echo "::error::Runtime regression suite failed; detailed logs remain private."
             exit "$result"
@@ -132,7 +132,7 @@ jobs:
           set -e
           if [ "$result" -ne 0 ]; then
             echo "::group::Failing Backroom test identifiers"
-            grep -E '^(not ok |# tests |# pass |# fail |# cancelled |# skipped )' "$RUNNER_TEMP/rm-backroom-tests.log" | tail -30 | cut -c1-220 || true
+            grep -E '^(TAP version|not ok |# (tests|pass|fail|cancelled|skipped)|Error:|TypeError:|ReferenceError:|SyntaxError:|AssertionError|[[:space:]]+error:|[[:space:]]+code:|Cannot find module|ERR_MODULE_NOT_FOUND)' "$RUNNER_TEMP/rm-backroom-tests.log" | head -35 | cut -c1-220 || true
             echo "::endgroup::"
             echo "::error::Backroom regression suite failed; detailed logs remain private."
             exit "$result"
@@ -151,7 +151,7 @@ jobs:
           set -e
           if [ "$result" -ne 0 ]; then
             echo "::group::Failing external-workspace test identifiers"
-            grep -E '^(not ok |# tests |# pass |# fail |# cancelled |# skipped )' "$RUNNER_TEMP/rm-external-tests.log" | tail -30 | cut -c1-220 || true
+            grep -E '^(TAP version|not ok |# (tests|pass|fail|cancelled|skipped)|Error:|TypeError:|ReferenceError:|SyntaxError:|AssertionError|[[:space:]]+error:|[[:space:]]+code:|Cannot find module|ERR_MODULE_NOT_FOUND)' "$RUNNER_TEMP/rm-external-tests.log" | head -35 | cut -c1-220 || true
             echo "::endgroup::"
             echo "::error::External workspace regression suite failed; detailed logs remain private."
             exit "$result"
