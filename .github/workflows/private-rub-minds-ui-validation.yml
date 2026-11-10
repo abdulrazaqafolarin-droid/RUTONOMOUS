@@ -112,7 +112,10 @@ jobs:
           result=$?
           set -e
           if [ "$result" -ne 0 ]; then
-            echo "::error::Runtime regression suite failed; private logs are withheld."
+            echo "::group::Failing runtime test identifiers"
+            grep -E '^(not ok |# tests |# pass |# fail |# cancelled |# skipped )' "$RUNNER_TEMP/rm-runtime-tests.log" | tail -30 | cut -c1-220 || true
+            echo "::endgroup::"
+            echo "::error::Runtime regression suite failed; detailed logs remain private."
             exit "$result"
           fi
           echo "Runtime regression suite: PASS"
@@ -128,7 +131,10 @@ jobs:
           result=$?
           set -e
           if [ "$result" -ne 0 ]; then
-            echo "::error::Backroom regression suite failed; private logs are withheld."
+            echo "::group::Failing Backroom test identifiers"
+            grep -E '^(not ok |# tests |# pass |# fail |# cancelled |# skipped )' "$RUNNER_TEMP/rm-backroom-tests.log" | tail -30 | cut -c1-220 || true
+            echo "::endgroup::"
+            echo "::error::Backroom regression suite failed; detailed logs remain private."
             exit "$result"
           fi
           echo "Backroom regression suite: PASS"
@@ -144,7 +150,10 @@ jobs:
           result=$?
           set -e
           if [ "$result" -ne 0 ]; then
-            echo "::error::External workspace regression suite failed; private logs are withheld."
+            echo "::group::Failing external-workspace test identifiers"
+            grep -E '^(not ok |# tests |# pass |# fail |# cancelled |# skipped )' "$RUNNER_TEMP/rm-external-tests.log" | tail -30 | cut -c1-220 || true
+            echo "::endgroup::"
+            echo "::error::External workspace regression suite failed; detailed logs remain private."
             exit "$result"
           fi
           echo "External workspace regression suite: PASS"
@@ -160,7 +169,10 @@ jobs:
           result=$?
           set -e
           if [ "$result" -ne 0 ]; then
-            echo "::error::TypeScript project build failed; private logs are withheld."
+            echo "::group::TypeScript diagnostic identifiers"
+            grep -E 'error TS[0-9]+' "$RUNNER_TEMP/rm-tsc.log" | sed -E 's/: error TS([0-9]+):.*/: TypeScript diagnostic TS\1/' | tail -20 | cut -c1-220 || true
+            echo "::endgroup::"
+            echo "::error::TypeScript project build failed; full diagnostics remain private."
             exit "$result"
           fi
           echo "TypeScript project build: PASS"
@@ -233,10 +245,13 @@ jobs:
           result=$?
           set -e
           if [ "$result" -ne 0 ]; then
-            grep -E 'Missing regular visual-review|Screenshot paths are not regular|Screenshot is empty|Missing visual-review|AssertionError:' "$RUNNER_TEMP/rm-browser.log" | tail -8 | cut -c1-220 || true
-            echo "::error::Desktop/mobile browser acceptance failed; private logs and screenshots are withheld."
+            echo "::group::Safe browser acceptance failure"
+            grep -E 'AssertionError|Error:|Missing regular visual-review|Screenshot paths are not regular|Screenshot is empty|Missing visual-review' "$RUNNER_TEMP/rm-browser.log" | head -8 | cut -c1-220 || true
+            echo "::endgroup::"
+            echo "::error::Desktop/mobile browser acceptance failed; full private logs are withheld."
             exit "$result"
           fi
+          grep '^Visual-review screenshots:' "$RUNNER_TEMP/rm-browser.log" | cut -c1-500 || true
           echo "Desktop and mobile Playwright acceptance: PASS"
 
 
