@@ -98,19 +98,47 @@ jobs:
           fi
           echo "Private Vitest suite: PASS"
 
-      - name: Run production prebuild regression suites
+      - name: Runtime regression suite
         working-directory: private-rub-minds
         shell: bash
         run: |
           set +e
-          npm run prebuild > "$RUNNER_TEMP/rm-prebuild.log" 2>&1
+          npm run test:runtime > "$RUNNER_TEMP/rm-runtime-tests.log" 2>&1
           result=$?
           set -e
           if [ "$result" -ne 0 ]; then
-            echo "::error::Production prebuild regression suite failed; private logs are withheld."
+            echo "::error::Runtime regression suite failed; private logs are withheld."
             exit "$result"
           fi
-          echo "Production prebuild regression suites: PASS"
+          echo "Runtime regression suite: PASS"
+
+      - name: Backroom regression suite
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set +e
+          npm run test:backroom > "$RUNNER_TEMP/rm-backroom-tests.log" 2>&1
+          result=$?
+          set -e
+          if [ "$result" -ne 0 ]; then
+            echo "::error::Backroom regression suite failed; private logs are withheld."
+            exit "$result"
+          fi
+          echo "Backroom regression suite: PASS"
+
+      - name: External workspace regression suite
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set +e
+          npm run test:external-workspaces > "$RUNNER_TEMP/rm-external-tests.log" 2>&1
+          result=$?
+          set -e
+          if [ "$result" -ne 0 ]; then
+            echo "::error::External workspace regression suite failed; private logs are withheld."
+            exit "$result"
+          fi
+          echo "External workspace regression suite: PASS"
 
       - name: TypeScript project build
         working-directory: private-rub-minds
@@ -131,7 +159,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          npx vite build > "$RUNNER_TEMP/rm-vite.log" 2>&1
+          npx vite build > "$RUNNER_TEMP/rm-vite.log" "$RUNNER_TEMP/rm-runtime-tests.log" "$RUNNER_TEMP/rm-backroom-tests.log" "$RUNNER_TEMP/rm-external-tests.log" 2>&1
           result=$?
           set -e
           if [ "$result" -ne 0 ]; then
