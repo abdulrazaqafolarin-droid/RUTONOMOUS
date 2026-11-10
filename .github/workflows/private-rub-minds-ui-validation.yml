@@ -1,4 +1,4 @@
-name: Private Rub Minds production UI release gate
+name: Private Rub Minds visual label-icon regression validation
 
 on:
   push:
