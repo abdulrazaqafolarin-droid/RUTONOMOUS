@@ -1,4 +1,4 @@
-name: Private Rub Minds UI, dialog and signed-in journey revalidation
+name: Private Rub Minds UI, dialog and visual acceptance
 
 on:
   push:
@@ -267,6 +267,15 @@ jobs:
             exit 1
           fi
           echo "Private production UI validation: PASS"
+
+      - name: Upload short-lived visual acceptance screenshots
+        if: always() && steps.browser.conclusion == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rub-minds-ui-visual-acceptance
+          path: ${{ runner.temp }}/rub-minds-ui-screenshots/
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Remove private source and temporary logs
         if: always()
