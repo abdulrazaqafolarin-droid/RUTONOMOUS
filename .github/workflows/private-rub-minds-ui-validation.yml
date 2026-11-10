@@ -1,4 +1,4 @@
-name: Private Rub Minds UI, dialog and signed-in journey validation
+name: Private Rub Minds UI, dialog and signed-in journey revalidation
 
 on:
   push:
@@ -93,7 +93,10 @@ jobs:
           result=$?
           set -e
           if [ "$result" -ne 0 ]; then
-            echo "::error::Private UI tests failed; detailed logs are withheld."
+            echo "::group::Safe UI test failure summary"
+            grep -E '^ FAIL |^ ❯ |^ × |^ Test Files|^      Tests ' "$RUNNER_TEMP/rm-vitest.log" | tail -20 | cut -c1-220 || true
+            echo "::endgroup::"
+            echo "::error::Private UI tests failed; assertion diffs and source output are withheld."
             exit "$result"
           fi
           echo "Private Vitest suite: PASS"
