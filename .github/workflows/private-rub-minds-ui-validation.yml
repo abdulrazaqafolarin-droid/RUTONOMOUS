@@ -181,11 +181,11 @@ jobs:
       - name: Summarize validation stages without exposing private output
         if: always()
         env:
-          RUNTIME_RESULT: ${{ steps.runtime.outcome }}
-          BACKROOM_RESULT: ${{ steps.backroom.outcome }}
-          EXTERNAL_RESULT: ${{ steps.external.outcome }}
-          TSC_RESULT: ${{ steps.tsc.outcome }}
-          VITE_RESULT: ${{ steps.vite.outcome }}
+          RUNTIME_RESULT: ${{ steps.runtime.conclusion }}
+          BACKROOM_RESULT: ${{ steps.backroom.conclusion }}
+          EXTERNAL_RESULT: ${{ steps.external.conclusion }}
+          TSC_RESULT: ${{ steps.tsc.conclusion }}
+          VITE_RESULT: ${{ steps.vite.conclusion }}
         shell: bash
         run: |
           set -euo pipefail
