@@ -1,4 +1,4 @@
-name: Private Rub Minds complete screenshot and visual acceptance
+name: Private Rub Minds verified visual artifact acceptance
 
 on:
   push:
@@ -268,12 +268,29 @@ jobs:
           fi
           echo "Private production UI validation: PASS"
 
-      - name: Upload short-lived visual acceptance screenshots
+      - name: Verify and archive all visual-review screenshots
+        id: visual
         if: always() && steps.browser.conclusion == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          screenshot_dir="$RUNNER_TEMP/rub-minds-ui-screenshots"
+          mapfile -t screenshots < <(find "$screenshot_dir" -maxdepth 1 -type f -name '*.png' -printf '%f\\n' | sort)
+          printf 'Visual-review files (%s):\\n' "${#screenshots[@]}"
+          printf ' - %s\\n' "${screenshots[@]}"
+          if [ "${#screenshots[@]}" -ne 9 ]; then
+            echo "::error::Expected nine visual-review screenshots; found ${#screenshots[@]}."
+            exit 1
+          fi
+          tar -czf "$RUNNER_TEMP/rub-minds-ui-screenshots.tar.gz" -C "$RUNNER_TEMP" rub-minds-ui-screenshots
+          echo "Nine screenshots archived for visual review."
+
+      - name: Upload short-lived visual acceptance screenshots
+        if: always() && steps.visual.conclusion == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: rub-minds-ui-visual-acceptance
-          path: ${{ runner.temp }}/rub-minds-ui-screenshots/
+          path: ${{ runner.temp }}/rub-minds-ui-screenshots.tar.gz
           if-no-files-found: error
           retention-days: 7
 
@@ -282,5 +299,5 @@ jobs:
         shell: bash
         run: |
           rm -rf private-rub-minds
-          rm -f "$RUNNER_TEMP/rm-branch.json" "$RUNNER_TEMP/rm-npm-install.log" "$RUNNER_TEMP/rm-vitest.log" "$RUNNER_TEMP/rm-build.log" "$RUNNER_TEMP/rm-prebuild.log" "$RUNNER_TEMP/rm-tsc.log" "$RUNNER_TEMP/rm-vite.log" "$RUNNER_TEMP/rm-runtime-tests.log" "$RUNNER_TEMP/rm-backroom-tests.log" "$RUNNER_TEMP/rm-external-tests.log" "$RUNNER_TEMP/rm-playwright-install.log" "$RUNNER_TEMP/rm-preview.log" "$RUNNER_TEMP/rm-preview.pid" "$RUNNER_TEMP/rm-browser.log" && rm -rf "$RUNNER_TEMP/rub-minds-ui-screenshots"
+          rm -f "$RUNNER_TEMP/rm-branch.json" "$RUNNER_TEMP/rm-npm-install.log" "$RUNNER_TEMP/rm-vitest.log" "$RUNNER_TEMP/rm-build.log" "$RUNNER_TEMP/rm-prebuild.log" "$RUNNER_TEMP/rm-tsc.log" "$RUNNER_TEMP/rm-vite.log" "$RUNNER_TEMP/rm-runtime-tests.log" "$RUNNER_TEMP/rm-backroom-tests.log" "$RUNNER_TEMP/rm-external-tests.log" "$RUNNER_TEMP/rm-playwright-install.log" "$RUNNER_TEMP/rm-preview.log" "$RUNNER_TEMP/rm-preview.pid" "$RUNNER_TEMP/rm-browser.log" "$RUNNER_TEMP/rub-minds-ui-screenshots.tar.gz" && rm -rf "$RUNNER_TEMP/rub-minds-ui-screenshots"
           echo "Disposable private-source checkout and logs removed."
