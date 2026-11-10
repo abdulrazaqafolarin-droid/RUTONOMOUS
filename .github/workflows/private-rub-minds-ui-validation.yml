@@ -98,25 +98,52 @@ jobs:
           fi
           echo "Private Vitest suite: PASS"
 
-      - name: Run prebuild regression suites, TypeScript and Vite production build
+      - name: Run production prebuild regression suites
         working-directory: private-rub-minds
         shell: bash
         run: |
           set +e
-          npm run build > "$RUNNER_TEMP/rm-build.log" 2>&1
+          npm run prebuild > "$RUNNER_TEMP/rm-prebuild.log" 2>&1
           result=$?
           set -e
           if [ "$result" -ne 0 ]; then
-            echo "::error::Private production build failed; detailed logs are withheld."
+            echo "::error::Production prebuild regression suite failed; private logs are withheld."
             exit "$result"
           fi
-          echo "Prebuild regression suites: PASS"
-          echo "TypeScript and Vite production build: PASS"
+          echo "Production prebuild regression suites: PASS"
+
+      - name: TypeScript project build
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set +e
+          npx tsc -b > "$RUNNER_TEMP/rm-tsc.log" 2>&1
+          result=$?
+          set -e
+          if [ "$result" -ne 0 ]; then
+            echo "::error::TypeScript project build failed; private logs are withheld."
+            exit "$result"
+          fi
+          echo "TypeScript project build: PASS"
+
+      - name: Vite production bundle
+        working-directory: private-rub-minds
+        shell: bash
+        run: |
+          set +e
+          npx vite build > "$RUNNER_TEMP/rm-vite.log" 2>&1
+          result=$?
+          set -e
+          if [ "$result" -ne 0 ]; then
+            echo "::error::Vite production bundle failed; private logs are withheld."
+            exit "$result"
+          fi
+          echo "Vite production bundle: PASS"
 
       - name: Remove private source and temporary logs
         if: always()
         shell: bash
         run: |
           rm -rf private-rub-minds
-          rm -f "$RUNNER_TEMP/rm-branch.json" "$RUNNER_TEMP/rm-npm-install.log" "$RUNNER_TEMP/rm-vitest.log" "$RUNNER_TEMP/rm-build.log"
+          rm -f "$RUNNER_TEMP/rm-branch.json" "$RUNNER_TEMP/rm-npm-install.log" "$RUNNER_TEMP/rm-vitest.log" "$RUNNER_TEMP/rm-build.log" "$RUNNER_TEMP/rm-prebuild.log" "$RUNNER_TEMP/rm-tsc.log" "$RUNNER_TEMP/rm-vite.log"
           echo "Disposable private-source checkout and logs removed."
