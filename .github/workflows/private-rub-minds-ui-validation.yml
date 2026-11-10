@@ -11,7 +11,7 @@ on:
         description: Private production-based UI branch to validate
         required: true
         type: string
-        default: feat/rub-minds-uiux-production
+        default: main
 
 permissions:
   contents: read
@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      SOURCE_REF: ${{ inputs.source_ref || 'feat/rub-minds-uiux-production' }}
+      SOURCE_REF: ${{ inputs.source_ref || 'main' }}
       RUB_MINDS_READ_TOKEN: ${{ secrets.RUB_MINDS_READ_TOKEN }}
     steps:
       - name: Validate private repository access and selected branch
@@ -57,7 +57,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: abdulrazaqafolarin-droid/Rub-minds
-          ref: ${{ inputs.source_ref || 'feat/rub-minds-uiux-production' }}
+          ref: ${{ inputs.source_ref || 'main' }}
           token: ${{ secrets.RUB_MINDS_READ_TOKEN }}
           path: private-rub-minds
           persist-credentials: false
