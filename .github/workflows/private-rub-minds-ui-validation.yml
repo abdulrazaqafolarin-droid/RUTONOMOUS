@@ -202,7 +202,7 @@ jobs:
 
       - name: Run desktop and mobile browser acceptance
         id: browser
-        if: always() && steps.vite.conclusion == 'success' && steps.playwright.conclusion == 'success'
+        if: always() && steps.vite.outcome == 'success' && steps.playwright.outcome == 'success'
         continue-on-error: true
         working-directory: private-rub-minds
         env:
@@ -242,13 +242,13 @@ jobs:
       - name: Summarize validation stages without exposing private output
         if: always()
         env:
-          RUNTIME_RESULT: ${{ steps.runtime.conclusion }}
-          BACKROOM_RESULT: ${{ steps.backroom.conclusion }}
-          EXTERNAL_RESULT: ${{ steps.external.conclusion }}
-          TSC_RESULT: ${{ steps.tsc.conclusion }}
-          VITE_RESULT: ${{ steps.vite.conclusion }}
-          PLAYWRIGHT_INSTALL_RESULT: ${{ steps.playwright.conclusion }}
-          BROWSER_RESULT: ${{ steps.browser.conclusion }}
+          RUNTIME_RESULT: ${{ steps.runtime.outcome }}
+          BACKROOM_RESULT: ${{ steps.backroom.outcome }}
+          EXTERNAL_RESULT: ${{ steps.external.outcome }}
+          TSC_RESULT: ${{ steps.tsc.outcome }}
+          VITE_RESULT: ${{ steps.vite.outcome }}
+          PLAYWRIGHT_INSTALL_RESULT: ${{ steps.playwright.outcome }}
+          BROWSER_RESULT: ${{ steps.browser.outcome }}
         shell: bash
         run: |
           set -euo pipefail
@@ -270,7 +270,7 @@ jobs:
 
       - name: Verify and archive all visual-review screenshots
         id: visual
-        if: always() && steps.browser.conclusion == 'success'
+        if: always() && steps.browser.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
