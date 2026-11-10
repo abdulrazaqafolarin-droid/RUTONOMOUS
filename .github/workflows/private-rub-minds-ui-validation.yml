@@ -1,4 +1,4 @@
-name: Private Rub Minds detailed failure isolation
+name: Private Rub Minds authenticated UI and test isolation
 
 on:
   push:
@@ -114,7 +114,8 @@ jobs:
           if [ "$result" -ne 0 ]; then
             echo "::group::Failing runtime test identifiers"
             echo "Exit status: $result; diagnostic log bytes: $(wc -c < "$RUNNER_TEMP/rm-runtime-tests.log")"
-            grep -iE 'failed|error|exception|timeout|not ok|module not found|not found|terminated|killed' "$RUNNER_TEMP/rm-runtime-tests.log" | head -20 | cut -c1-220 || true
+            grep -E '✖|not ok |# fail [^0]|# cancelled [^0]|ℹ fail [^0]|ERR_MODULE_NOT_FOUND|ERR_TEST_FAILURE|Error \[' "$RUNNER_TEMP/rm-runtime-tests.log" | tail -25 | cut -c1-220 || true
+            grep -E '^(ℹ tests|ℹ pass|ℹ fail|# tests|# pass|# fail)' "$RUNNER_TEMP/rm-runtime-tests.log" | tail -8 | cut -c1-160 || true
             echo "::endgroup::"
             echo "::error::Runtime regression suite failed; detailed logs remain private."
             exit "$result"
@@ -134,7 +135,8 @@ jobs:
           if [ "$result" -ne 0 ]; then
             echo "::group::Failing Backroom test identifiers"
             echo "Exit status: $result; diagnostic log bytes: $(wc -c < "$RUNNER_TEMP/rm-backroom-tests.log")"
-            grep -iE 'failed|error|exception|timeout|not ok|module not found|not found|terminated|killed' "$RUNNER_TEMP/rm-backroom-tests.log" | head -20 | cut -c1-220 || true
+            grep -E '✖|not ok |# fail [^0]|# cancelled [^0]|ℹ fail [^0]|ERR_MODULE_NOT_FOUND|ERR_TEST_FAILURE|Error \[' "$RUNNER_TEMP/rm-backroom-tests.log" | tail -25 | cut -c1-220 || true
+            grep -E '^(ℹ tests|ℹ pass|ℹ fail|# tests|# pass|# fail)' "$RUNNER_TEMP/rm-backroom-tests.log" | tail -8 | cut -c1-160 || true
             echo "::endgroup::"
             echo "::error::Backroom regression suite failed; detailed logs remain private."
             exit "$result"
@@ -154,7 +156,8 @@ jobs:
           if [ "$result" -ne 0 ]; then
             echo "::group::Failing external-workspace test identifiers"
             echo "Exit status: $result; diagnostic log bytes: $(wc -c < "$RUNNER_TEMP/rm-external-tests.log")"
-            grep -iE 'failed|error|exception|timeout|not ok|module not found|not found|terminated|killed' "$RUNNER_TEMP/rm-external-tests.log" | head -20 | cut -c1-220 || true
+            grep -E '✖|not ok |# fail [^0]|# cancelled [^0]|ℹ fail [^0]|ERR_MODULE_NOT_FOUND|ERR_TEST_FAILURE|Error \[' "$RUNNER_TEMP/rm-external-tests.log" | tail -25 | cut -c1-220 || true
+            grep -E '^(ℹ tests|ℹ pass|ℹ fail|# tests|# pass|# fail)' "$RUNNER_TEMP/rm-external-tests.log" | tail -8 | cut -c1-160 || true
             echo "::endgroup::"
             echo "::error::External workspace regression suite failed; detailed logs remain private."
             exit "$result"
