@@ -1,4 +1,4 @@
-# Revalidate private PR #69 after the race-safe device-frame connector lifecycle fix and regression test.\n# Validate latest Deno type fixes and Android settlement-result propagation from PR 69.
+# Revalidate latest private PR #69 head including unmount and clipboard race guards.\n# Validate latest Deno type fixes and Android settlement-result propagation from PR 69.
 # Recheck the latest private Rub Minds device-frame E2E and cross-platform regression fixes.
 # Current source branch validation requested after the Backroom binding-route fix.
 # Simulator TypeScript compile fixes validated against the current private branch.
