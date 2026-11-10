@@ -2,7 +2,7 @@ name: Private Rub Minds production UI release gate
 
 on:
   push:
-    branches: [feat/rub-minds-uiux-production]
+    branches: [main]
     paths:
       - .github/workflows/private-rub-minds-ui-validation.yml
   workflow_dispatch:
@@ -23,7 +23,7 @@ concurrency:
 jobs:
   production-ui:
     name: Private UI tests and production build
-    if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && github.ref == 'refs/heads/feat/rub-minds-uiux-production' && github.actor == 'abdulrazaqafolarin-droid'
+    if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
