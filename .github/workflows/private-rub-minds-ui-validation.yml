@@ -1,4 +1,4 @@
-name: Private Rub Minds production build preflight revalidation
+name: Private Rub Minds durable wake gate and production build revalidation
 
 on:
   push:
