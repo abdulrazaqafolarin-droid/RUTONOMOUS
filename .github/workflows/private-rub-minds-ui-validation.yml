@@ -11,7 +11,7 @@ on:
         description: Private production-based UI branch to validate
         required: true
         type: string
-        default: feat/rub-minds-uiux-production
+        default: main
 
 permissions:
   contents: read
@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      SOURCE_REF: ${{ inputs.source_ref || 'feat/rub-minds-uiux-production' }}
+      SOURCE_REF: ${{ inputs.source_ref || 'main' }}
       RUB_MINDS_READ_TOKEN: ${{ secrets.RUB_MINDS_READ_TOKEN }}
     steps:
       - name: Validate private repository access and selected branch
@@ -53,11 +53,40 @@ jobs:
           fi
           echo "Private source branch: read-only access verified."
 
+      - name: Inspect native Rub Minds Actions startup metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/abdulrazaqafolarin-droid/Rub-minds/actions/runs"
+          for run_id in 43405733117 43405733098; do
+            run_file="$RUNNER_TEMP/rm-actions-run-$run_id.json"
+            jobs_file="$RUNNER_TEMP/rm-actions-jobs-$run_id.json"
+            run_code="$(curl --silent --show-error --output "$run_file" --write-out '%{http_code}' \\
+              --header "Accept: application/vnd.github+json" \\
+              --header "Authorization: Bearer $RUB_MINDS_READ_TOKEN" \\
+              --header "X-GitHub-Api-Version: 2022-11-28" \\
+              "$api/$run_id")" || true
+            jobs_code="$(curl --silent --show-error --output "$jobs_file" --write-out '%{http_code}' \\
+              --header "Accept: application/vnd.github+json" \\
+              --header "Authorization: Bearer $RUB_MINDS_READ_TOKEN" \\
+              --header "X-GitHub-Api-Version: 2022-11-28" \\
+              "$api/$run_id/jobs?filter=latest")" || true
+            echo "Private Rub Minds Actions run $run_id: run metadata HTTP ${run_code:-transport-error}; jobs metadata HTTP ${jobs_code:-transport-error}"
+            if [ "$run_code" = "200" ] && jq -e '.id' "$run_file" >/dev/null 2>&1; then
+              jq '{id,name,event,status,conclusion,run_attempt,run_started_at,head_branch,head_sha}' "$run_file"
+            fi
+            if [ "$jobs_code" = "200" ] && jq -e '.jobs' "$jobs_file" >/dev/null 2>&1; then
+              jq -r '.jobs[] | "job=\(.name) status=\(.status) conclusion=\(.conclusion // "unknown") runner_id=\(.runner_id // 0) runner_name=\(.runner_name // "none") started_at=\(.started_at // "none") completed_at=\(.completed_at // "none") steps=\((.steps // []) | length)"' "$jobs_file"
+            fi
+          done
+          rm -f "$RUNNER_TEMP"/rm-actions-run-*.json "$RUNNER_TEMP"/rm-actions-jobs-*.json
+          echo "Only workflow/job metadata was inspected; no private source logs were requested or printed."
+
       - name: Checkout private source into disposable runner workspace
         uses: actions/checkout@v4
         with:
           repository: abdulrazaqafolarin-droid/Rub-minds
-          ref: ${{ inputs.source_ref || 'feat/rub-minds-uiux-production' }}
+          ref: ${{ inputs.source_ref || 'main' }}
           token: ${{ secrets.RUB_MINDS_READ_TOKEN }}
           path: private-rub-minds
           persist-credentials: false
