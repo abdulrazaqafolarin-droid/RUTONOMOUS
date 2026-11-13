@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - .github/workflows/private-rub-minds-ui-validation.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/private-rub-minds-ui-validation.yml
   workflow_dispatch:
     inputs:
       source_ref:
@@ -23,7 +27,7 @@ concurrency:
 jobs:
   production-ui:
     name: Private UI tests and production build
-    if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && github.ref == 'refs/heads/main' && github.actor == 'abdulrazaqafolarin-droid'
+    if: github.repository == 'abdulrazaqafolarin-droid/RUTONOMOUS' && (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') && github.actor == 'abdulrazaqafolarin-droid'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
